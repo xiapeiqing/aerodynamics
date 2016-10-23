@@ -8,7 +8,7 @@ scalingfactor = 0.5;
 NASA_wingSpan_mm = 3750;
 NASA_centerCord_mm = 400;
 NASA_tipcord_mm = 100;
-ribCnt = 21;
+ribCnt = 39;
 X.wingSpan_mm = NASA_wingSpan_mm*scalingfactor;
 X.rootCord_mm = NASA_centerCord_mm*scalingfactor;
 X.wingtipCord_mm = NASA_tipcord_mm*scalingfactor;
@@ -263,19 +263,19 @@ end
 fid = fopen('airfoil_all.scr','w');
 fprintf(fid,'pline\n');
 for ii = 1:X.OneSideRibCnt
-    save_finalResults2onefile(fid,ii,50,0,[cut_trailingedge{ii}.top.x; cut_trailingedge{ii}.btm.x],[cut_trailingedge{ii}.top.y; cut_trailingedge{ii}.btm.y]);
+    save_finalResults2onefile(fid,ii,0,50,[cut_trailingedge{ii}.top.x; cut_trailingedge{ii}.btm.x],[cut_trailingedge{ii}.top.y; cut_trailingedge{ii}.btm.y]);
 end
 fclose(fid);
 
 %% produce force bearing beam cut cad file
 RibLocationXmm = RibCoeffsRoot2Tip*X.wingSpan_mm/2;
 FineSegmentCnt = 1000;
-BeamShape = cell(1,X.ForceBearingBeamCnt);
-BeamShapeAddBtmEdge = cell(1,X.ForceBearingBeamCnt);
 
-fid = fopen('beam_all.scr','w');
-fprintf(fid,'pline\n');
 for iiBeam = 1:X.ForceBearingBeamCnt
+    BeamShape = cell(1,X.ForceBearingBeamCnt);
+    BeamShapeAddBtmEdge = cell(1,X.ForceBearingBeamCnt);
+    fid = fopen(sprintf('beam_%d.scr',iiBeam),'w');
+    fprintf(fid,'pline\n');
     ThicknessVec = zeros(1,X.OneSideRibCnt);
     CutDepthVec = zeros(1,X.OneSideRibCnt);
     for iiRib = 1:X.OneSideRibCnt
@@ -321,12 +321,10 @@ for iiBeam = 1:X.ForceBearingBeamCnt
     axis equal;
     xlabel('single side wingspan(mm)');
     ylabel('mm');
-    title('Beam');
-    save_finalResults2onefile(fid,ii,0,100,BeamShapeAddBtmEdge{iiBeam}.x,BeamShapeAddBtmEdge{iiBeam}.y);
+    title(sprintf('Beam%d',iiBeam));
+    save_finalResults2onefile(fid,iiBeam,0,100,BeamShapeAddBtmEdge{iiBeam}.x,BeamShapeAddBtmEdge{iiBeam}.y);
+    fclose(fid);
 end
-fclose(fid);
-
-
 end
 
 
@@ -348,11 +346,12 @@ end
 
 function save_finalResults2onefile(fid,idx, xoffset, yoffset, xx, yy)
 assert(length(xx)==length(yy));
-yoffset = (idx-1)*xoffset;
+xoffset = (idx-1)*xoffset;
+yoffset = (idx-1)*yoffset;
 for ii = 1:length(xx)
-    fprintf(fid,'%f,%f\n',xx(ii),yy(ii)+yoffset);
+    fprintf(fid,'%f,%f\n',xx(ii)+xoffset,yy(ii)+yoffset);
 end
-fprintf(fid,'%f,%f\n',xx(1),yy(1)+yoffset);
+fprintf(fid,'%f,%f\n',xx(1)+xoffset,yy(1)+yoffset);
 end
 
 % function save_finalResults(idx, xx, yy)
