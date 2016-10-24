@@ -219,8 +219,9 @@ hold on;
 for ii = 1:X.OneSideRibCnt
     LE_x = min([slotcut_ribs{ii}.top.x;slotcut_ribs{ii}.btm.x]);
     LeadingEdgeBeamPosDetected = false;
-    for xposition = LE_x:0.1:LE_x+30
-        if getThickness(slotcut_ribs{ii},xposition) > X.LeadingEdgeBeamThickness_mm
+    for xposition = LE_x:0.001:LE_x+30
+        Thickness_mm = getThickness(slotcut_ribs{ii},xposition);
+        if Thickness_mm > X.LeadingEdgeBeamThickness_mm
             LeadingEdgeBeamPosDetected = true;
             break;
         end
@@ -229,8 +230,9 @@ for ii = 1:X.OneSideRibCnt
     cut_leadingedge{ii}.top = removeLeadingSector(slotcut_ribs{ii}.top,xposition);
     cut_leadingedge{ii}.btm = removeLeadingSector(slotcut_ribs{ii}.btm,xposition);
     
-    cut_leadingedge{ii}.top = cutLeadingEdgeSlot(cut_leadingedge{ii}.top);
-    cut_leadingedge{ii}.btm = cutLeadingEdgeSlot(cut_leadingedge{ii}.btm);
+    afterCutThickness_mm = abs(cut_leadingedge{ii}.top.y(1) - cut_leadingedge{ii}.btm.y(1));
+    cut_leadingedge{ii}.top = cutLeadingEdgeSlot(cut_leadingedge{ii}.top,'top',afterCutThickness_mm);
+    cut_leadingedge{ii}.btm = cutLeadingEdgeSlot(cut_leadingedge{ii}.btm,'btm',afterCutThickness_mm);
     
     plot([cut_leadingedge{ii}.top.x; cut_leadingedge{ii}.btm.x],[cut_leadingedge{ii}.top.y; cut_leadingedge{ii}.btm.y],'.');
 end
@@ -363,19 +365,33 @@ end
 % end
 % fprintf(fid,'%f,%f\n',xx(1),yy(1));
 % fclose(fid);
-% end
+% end,
 
-function newcurve = cutLeadingEdgeSlot(curve)
+function newcurve = cutLeadingEdgeSlot(curve,edgetype,Thickness_mm)
 global X;
 newcurve = [];
-x = curve.x;
-y = curve.y;
-PointType = curve.PointType;
-LE_x = x(1);
-LE_y = y(1);
-newcurve.x = [LE_x+X.LeadingEdgeBeamWidth_mm;x];
-newcurve.y = [LE_y;y];
-newcurve.PointType = [X.PointType.addedPoints;PointType];
+assert( Thickness_mm > X.LeadingEdgeBeamThickness_mm);
+
+LE_x = curve.x(1);
+LE_y = curve.y(1);
+
+yshift = ( Thickness_mm - X.LeadingEdgeBeamThickness_mm)/2;
+
+switch edgetype
+    case 'top'
+        precise_y = LE_y-yshift;
+    case 'btm'
+        precise_y = LE_y+-yshift;
+    otherwise
+        assert(false);
+end
+newcurve.x = [LE_x;curve.x];
+newcurve.y = [precise_y;curve.y];
+newcurve.PointType = [X.PointType.addedPoints;curve.PointType];
+
+newcurve.x = [LE_x+X.LeadingEdgeBeamWidth_mm;newcurve.x];
+newcurve.y = [precise_y;newcurve.y];
+newcurve.PointType = [X.PointType.addedPoints;newcurve.PointType];
 end
 
 function newcurve = removeTrailingSector(curve,cutoffx)
@@ -398,15 +414,18 @@ end
 end
 
 function newCurve = removeLeadingSector(curve,cutoffx)
+global X;
 newCurve = [];
-x = curve.x;
-y = curve.y;
-PointType = curve.PointType;
+assert(~ismember(cutoffx,curve.x));
 
-index = find(x>=cutoffx);
-newCurve.x = x(index);
-newCurve.y = y(index);
-newCurve.PointType = PointType(index);
+newCurve.x = cutoffx;
+newCurve.y = interp1nearby(curve.x,curve.y,curve.PointType,cutoffx,2);
+newCurve.PointType = X.PointType.addedPoints;
+
+indexaftercutoff = find(curve.x>=cutoffx);
+newCurve.x = [newCurve.x;curve.x(indexaftercutoff)];
+newCurve.y = [newCurve.y;curve.y(indexaftercutoff)];
+newCurve.PointType = [newCurve.PointType;curve.PointType(indexaftercutoff)];
 end
 
 function [x,y] = normalizexy(x,y)
@@ -437,6 +456,9 @@ end
 
 function val = interp1nearby(all_x,all_y,PointType,newx,nearbyCnt,type)
 global X;
+if ~exist('type','var')
+    type = X.curvefitmethod;
+end
 % all_x contains points in the fundamental rib contour and points added for slots.
 % basic_x contains points in the fundamental rib contour only
 basic_x = all_x(PointType==X.PointType.fundamental);
