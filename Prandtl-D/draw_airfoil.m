@@ -4,7 +4,7 @@ close all;
 load airfoil centerlinex centerliney wingtipx wingtipy twistx twisty;
 global X;
 X = [];
-scalingfactor = 0.5;
+scalingfactor = 0.45;
 NASA_wingSpan_mm = 3750;
 NASA_centerCord_mm = 400;
 NASA_tipcord_mm = 100;
@@ -14,11 +14,15 @@ X.dihedralDeg = 2.5;
 X.wingSpan_mm = NASA_wingSpan_mm*scalingfactor;
 X.rootCord_mm = NASA_centerCord_mm*scalingfactor;
 X.wingtipCord_mm = NASA_tipcord_mm*scalingfactor;
+
 X.LeadingEdgeBeamThickness_mm = 2; % square edge size 
-X.LeadingEdgeBeamWidth_mm = 3; % square edge size 
+X.LeadingEdgeBeamWidth_mm = 6; % square edge size 
 X.trailingEdgeWidth_mm = 10;
 
-X.MainBeamWidth_mm = 5;
+% support structure height, used in construction process
+X.RibMorrorSupportHeight_mm = 15;
+
+X.MainBeamWidth_mm = 6;
 X.MainBeamXmm = 0;
 assert(X.MainBeamXmm == 0); % we want the beam deployed at rotation center to have flat btm edge 
 % X.BeamAux0Width_mm = 5;
@@ -26,6 +30,14 @@ assert(X.MainBeamXmm == 0); % we want the beam deployed at rotation center to ha
 
 X.RibThickness_mm = 2;
 
+% the width of laser trace cannot be ignored
+X.beamSlotTraceCompensation_mm = 0.5;
+X.beamEdgeTraceCompensation_mm = 0.8;
+X.RibSlotCompensation_mm = 0.05;
+X.LeadingEdgeBeamThicknessCompensation_mm = 0.2;
+
+% four quadrants formed by main beam and rib are supported by 4 pieces of wedge. 
+X.BeamRibSupport_mm = 10;
 X.PointType = [];
 X.PointType.fundamental = 1;
 X.PointType.addedPoints = 2;
@@ -206,6 +218,34 @@ ylabel('mm');
 
 %% compute angle between beam and rib
 [X.AngleBtwBeamAndRibDeg,X.AngleBtwTEandRibDeg] = getObtuseAngleBtwBeamAndRibDeg(btmaligned_ribs_top_x);
+space = 10;
+fid = fopen('BeamRibSupport.scr','w');
+fprintf(fid,'pline\n');
+% quadrant 1
+fprintf(fid,'%f,%f\n',space,space);
+fprintf(fid,'%f,%f\n',space,space+X.BeamRibSupport_mm);
+fprintf(fid,'%f,%f\n',space+X.BeamRibSupport_mm*sind(X.AngleBtwBeamAndRibDeg),space-X.BeamRibSupport_mm*cosd(X.AngleBtwBeamAndRibDeg));
+fprintf(fid,'%f,%f\n',space,space);
+
+% quadrant 2
+fprintf(fid,'%f,%f\n',-space,space);
+fprintf(fid,'%f,%f\n',-space,space+X.BeamRibSupport_mm);
+fprintf(fid,'%f,%f\n',-space-X.BeamRibSupport_mm*sind(X.AngleBtwBeamAndRibDeg),space+X.BeamRibSupport_mm*cosd(X.AngleBtwBeamAndRibDeg));
+fprintf(fid,'%f,%f\n',-space,space);
+
+% quadrant 3
+fprintf(fid,'%f,%f\n',-space,-space);
+fprintf(fid,'%f,%f\n',-space,-space-X.BeamRibSupport_mm);
+fprintf(fid,'%f,%f\n',-space-X.BeamRibSupport_mm*sind(X.AngleBtwBeamAndRibDeg),-space+X.BeamRibSupport_mm*cosd(X.AngleBtwBeamAndRibDeg));
+fprintf(fid,'%f,%f\n',-space,-space);
+
+% quadrant 4
+fprintf(fid,'%f,%f\n',space,-space);
+fprintf(fid,'%f,%f\n',space,-space-X.BeamRibSupport_mm);
+fprintf(fid,'%f,%f\n',space+X.BeamRibSupport_mm*sind(X.AngleBtwBeamAndRibDeg),-space-X.BeamRibSupport_mm*cosd(X.AngleBtwBeamAndRibDeg));
+fprintf(fid,'%f,%f\n',space,-space);
+
+fclose(fid);
 fprintf(1,'AngleBtwBeamAndRibDeg=%f,AngleBtwTEandRibDeg=%f\n',X.AngleBtwBeamAndRibDeg,X.AngleBtwTEandRibDeg);
 %%
 Gamma = (1-RibCoeffsRoot2Tip.^2).^1.5;
@@ -236,9 +276,13 @@ end
 
 X.BeamRotDegDueToDihedral = getDihedralRotateDeg(slotcut_ribs);
 %% cut slot for force bearing beam
-slotcut_ribs = cutslot(slotcut_ribs,X.MainBeamWidth_mm,X.MainBeamXmm,'main');
-
-% slotcut_ribs = cutslot(slotcut_ribs,X.BeamAux0Width_mm,X.BeamAux0Xmm,'Aux0');
+[slotcut_ribs,ribMirror] = cutRibSlot(slotcut_ribs,X.MainBeamWidth_mm-2*X.RibSlotCompensation_mm,X.MainBeamXmm,'main');
+fid = fopen(sprintf('ribMirror.scr'),'w');
+fprintf(fid,'pline\n');
+for ii = 1:X.OneSideRibCnt
+    saveTopBtmCell2scrFile(fid,ii,0,50,ribMirror{ii});
+end
+fclose(fid);
 
 %% add leading edge beam
 cut_leadingedge = slotcut_ribs;
@@ -251,7 +295,7 @@ for ii = 1:X.OneSideRibCnt
     LeadingEdgeBeamPosDetected = false;
     for xposition = LE_x:0.001:LE_x+30
         [Thickness_mm,~,~] = getThickness(slotcut_ribs{ii},xposition);
-        if Thickness_mm > X.LeadingEdgeBeamThickness_mm
+        if Thickness_mm > X.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm
             LeadingEdgeBeamPosDetected = true;
             break;
         end
@@ -316,6 +360,8 @@ FineSegmentCnt = 1000;
 BeamShape = cell(1,X.ForceBearingBeamCnt);
 BeamShapeCutRibSlot = cell(1,X.ForceBearingBeamCnt);
 BeamDihedralApplied = cell(1,X.ForceBearingBeamCnt);
+BeamAlignedForStrength = cell(1,X.ForceBearingBeamCnt);
+BeamLaserTraceCompensated = cell(1,X.ForceBearingBeamCnt);
 for iiBeam = 1:X.ForceBearingBeamCnt
 %     BeamShapeAddBtmEdge = cell(1,X.ForceBearingBeamCnt);
     ThicknessVec = zeros(1,X.OneSideRibCnt);
@@ -358,6 +404,7 @@ for iiBeam = 1:X.ForceBearingBeamCnt
     BeamShape{iiBeam}.top.y = interp1(RibLocInBeamXmm,ThicknessVec+Yoffset,fineRibLocationXmm,X.curvefitmethod)';
     BeamShape{iiBeam}.top.PointType = ones(length(fineRibLocationXmm),1)*X.PointType.fundamental;
 
+    % if beam location is at the rotation center, btm edge is a straight line 
     BeamShape{iiBeam}.btm = [];
     BeamShape{iiBeam}.btm.x = fineRibLocationXmm';
     BeamShape{iiBeam}.btm.y = interp1(RibLocInBeamXmm,Yoffset,fineRibLocationXmm,X.curvefitmethod)';
@@ -375,15 +422,22 @@ for iiBeam = 1:X.ForceBearingBeamCnt
             otherwise
                StyleCutRibSlot = 'MiddleRib';
         end
-        BeamShapeCutRibSlot{iiBeam}.top = cutBeamSlot(BeamShapeCutRibSlot{iiBeam}.top,CutDepthVec(CutSlotForRib_ii),X.RibThickness_mm,RibLocInBeamXmm(CutSlotForRib_ii),StyleCutRibSlot);
+        BeamShapeCutRibSlot{iiBeam}.top = cutBeamSlot(BeamShapeCutRibSlot{iiBeam}.top,CutDepthVec(CutSlotForRib_ii),X.RibThickness_mm-2*X.beamSlotTraceCompensation_mm,RibLocInBeamXmm(CutSlotForRib_ii),StyleCutRibSlot);
     end
     BeamShapeCutRibSlot{iiBeam}.btm = matchCurveSpan(BeamDihedralApplied{iiBeam}.btm,BeamShapeCutRibSlot{iiBeam}.top);
+    draw_beam(BeamShapeCutRibSlot{iiBeam},sprintf('front view Beam%d',iiBeam));
     
-    draw_beam(iiBeam,BeamShapeCutRibSlot{iiBeam});
+    BeamAlignedForStrength{iiBeam} = AlignBeamForStrength(BeamShapeCutRibSlot{iiBeam},X.BeamRotDegDueToDihedral);
+    draw_beam(BeamAlignedForStrength{iiBeam},sprintf('Aligned Beam%d',iiBeam));
+
+    BeamLaserTraceCompensated{iiBeam} = BeamAlignedForStrength{iiBeam};
+    BeamLaserTraceCompensated{iiBeam}.top.y = BeamLaserTraceCompensated{iiBeam}.top.y + X.beamEdgeTraceCompensation_mm;
+    BeamLaserTraceCompensated{iiBeam}.btm.y = BeamLaserTraceCompensated{iiBeam}.btm.y - X.beamEdgeTraceCompensation_mm;
+    draw_beam(BeamLaserTraceCompensated{iiBeam},sprintf('LaserTrace Compensated Beam%d',iiBeam));
     
     fid = fopen(sprintf('beam_%d.scr',iiBeam),'w');
     fprintf(fid,'pline\n');
-    saveTopBtmCell2scrFile(fid,iiBeam,0,100,BeamShapeCutRibSlot{iiBeam});
+    saveTopBtmCell2scrFile(fid,iiBeam,0,100,BeamLaserTraceCompensated{iiBeam});
     fclose(fid);
     
 end
@@ -417,6 +471,27 @@ else
     % trim data
     % code to be filled here
 end
+
+end
+
+function BeamAlignedForStrength = AlignBeamForStrength(BeamShape,RotateDeg)
+BeamAlignedForStrength = [];
+% R = [cosd(RotateDeg) -sind(RotateDeg); sind(RotateDeg) cosd(RotateDeg)];
+% top_beforeRotate = [BeamShape.top.x BeamShape.top.y];
+% top_afterRotate = top_beforeRotate*R;
+% BeamAlignedForStrength.top.x = top_afterRotate(:,1);
+% BeamAlignedForStrength.top.y = top_afterRotate(:,2);
+BeamAlignedForStrength.top = rotateXY(BeamShape.top,-RotateDeg);
+BeamAlignedForStrength.btm = rotateXY(BeamShape.btm,-RotateDeg);
+
+offsetx = BeamAlignedForStrength.btm.x(1);
+offsety = BeamAlignedForStrength.btm.y(1);
+
+BeamAlignedForStrength.top.x = BeamAlignedForStrength.top.x - offsetx;
+BeamAlignedForStrength.btm.x = BeamAlignedForStrength.btm.x - offsetx;
+
+BeamAlignedForStrength.top.y = BeamAlignedForStrength.top.y - offsety;
+BeamAlignedForStrength.btm.y = BeamAlignedForStrength.btm.y - offsety;
 
 end
 
@@ -482,14 +557,14 @@ newxy.y = afterRotate(:,2);
 newxy.PointType = xy.PointType;
 end
 
-function draw_beam(iiBeam,TopBtmCell)
+function draw_beam(TopBtmCell,titlestr)
 [xx,yy] = OrderDataForPlot(TopBtmCell);
 figure;
 plot(xx,yy,'.-');
 axis equal;
 xlabel('single side wingspan(mm)');
 ylabel('mm');
-title(sprintf('Beam%d',iiBeam));
+title(titlestr);
 end
 
 function RotDeg = getDihedralRotateDeg(ribs)
@@ -561,12 +636,12 @@ end
 function newcurve = cutLeadingEdgeSlot(curve,edgetype,Thickness_mm)
 global X;
 newcurve = [];
-assert( Thickness_mm > X.LeadingEdgeBeamThickness_mm);
+assert( Thickness_mm > X.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm);
 
 LE_x = curve.x(1);
 LE_y = curve.y(1);
 
-yshift = ( Thickness_mm - X.LeadingEdgeBeamThickness_mm)/2;
+yshift = ( Thickness_mm - (X.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm))/2;
 
 switch edgetype
     case 'top'
@@ -626,14 +701,17 @@ function [x,y] = normalizexy(x,y)
     
 end
 
-function ribs = cutslot(ribs,width,xposition,slotName)
+function [ribs,ribMirror] = cutRibSlot(ribs,width,xposition,slotName)
 global X;
+ribMirror = cell(1,X.OneSideRibCnt);
 X.ForceBearingBeamCnt = X.ForceBearingBeamCnt + 1;
 assert(X.ForceBearingBeamCnt == 1,'currently we don''t handle the complexity causd by the second beam deployed at none AOA rotation center, curve bottom edge, dihedral connection, etc'); 
 figure;
 axis equal;
 hold on;
 for ii = 1:X.OneSideRibCnt
+    ribMirror{ii}.top = cutslotIn1curve(ribs{ii}.btm,2,width,xposition,'cutBoth');
+    
     [thickness,~,btm_mm] = getThickness(ribs{ii},xposition);
     [ribs{ii}.top.x,ribs{ii}.top.y] = cutnothing(ribs{ii}.top.x,ribs{ii}.top.y);
     cutDepth = thickness/2;
@@ -642,6 +720,10 @@ for ii = 1:X.OneSideRibCnt
     ribs{ii}.ForceBearingBeamRibThickness  = [ribs{ii}.ForceBearingBeamRibThickness;thickness];
     ribs{ii}.ForceBearingBeamRibYoffset = [ribs{ii}.ForceBearingBeamRibYoffset;btm_mm];
     plot([ribs{ii}.top.x; ribs{ii}.btm.x],[ribs{ii}.top.y; ribs{ii}.btm.y],'.');
+    
+    ribMirror{ii}.btm.x = [min(ribs{ii}.top.x);max(ribs{ii}.top.x)];
+    ribMirror{ii}.btm.y = -ones(2,1)*X.RibMorrorSupportHeight_mm;
+    ribMirror{ii}.btm.PointType = ones(2,1)*X.PointType.fundamental;
 end
 title(['Ribs:shifted,rotated,scaled,slotcut' slotName]);
 grid on;
@@ -689,6 +771,7 @@ cuty = y;
 end
 
 function NewCurve = cutBeamSlot(Curve,depth,width,xposition,style)
+assert(width > 0);
 switch style
     case 'RootRib'
         NewCurve = cutslotIn1curve(Curve,depth,width,xposition,'cutLeft');
