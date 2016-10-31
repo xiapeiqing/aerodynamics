@@ -274,7 +274,8 @@ for ii = 1:X.OneSideRibCnt
     slotcut_ribs{ii}.ForceBearingBeamRibYoffset = [];
 end
 
-X.BeamRotDegDueToDihedral = getDihedralRotateDeg(slotcut_ribs);
+[X.BeamRotDegDueToDihedral,OneSideWwingTipRise_mm] = getDihedralRotateDeg(slotcut_ribs);
+fprintf(1,'one side wing tiop rises %fmm',OneSideWwingTipRise_mm);
 %% cut slot for force bearing beam
 [slotcut_ribs,ribMirror] = cutRibSlot(slotcut_ribs,X.MainBeamWidth_mm-2*X.RibSlotCompensation_mm,X.MainBeamXmm,'main');
 fid = fopen(sprintf('ribMirror.scr'),'w');
@@ -410,7 +411,7 @@ for iiBeam = 1:X.ForceBearingBeamCnt
     BeamShape{iiBeam}.btm.y = interp1(RibLocInBeamXmm,Yoffset,fineRibLocationXmm,X.curvefitmethod)';
     BeamShape{iiBeam}.btm.PointType = ones(length(fineRibLocationXmm),1)*X.PointType.fundamental;
     
-    BeamDihedralApplied{iiBeam} = ApplyBeamDihedral(BeamShape{iiBeam},X.BeamRotDegDueToDihedral);
+    BeamDihedralApplied{iiBeam} = ApplyBeamDihedral(BeamShape{iiBeam},-X.BeamRotDegDueToDihedral);
 
     BeamShapeCutRibSlot = BeamDihedralApplied;
     for CutSlotForRib_ii = 1:X.OneSideRibCnt
@@ -427,7 +428,7 @@ for iiBeam = 1:X.ForceBearingBeamCnt
     BeamShapeCutRibSlot{iiBeam}.btm = matchCurveSpan(BeamDihedralApplied{iiBeam}.btm,BeamShapeCutRibSlot{iiBeam}.top);
     draw_beam(BeamShapeCutRibSlot{iiBeam},sprintf('front view Beam%d',iiBeam));
     
-    BeamAlignedForStrength{iiBeam} = AlignBeamForStrength(BeamShapeCutRibSlot{iiBeam},X.BeamRotDegDueToDihedral);
+    BeamAlignedForStrength{iiBeam} = AlignBeamForStrength(BeamShapeCutRibSlot{iiBeam},-X.BeamRotDegDueToDihedral);
     draw_beam(BeamAlignedForStrength{iiBeam},sprintf('Aligned Beam%d',iiBeam));
 
     BeamLaserTraceCompensated{iiBeam} = BeamAlignedForStrength{iiBeam};
@@ -567,11 +568,12 @@ ylabel('mm');
 title(titlestr);
 end
 
-function RotDeg = getDihedralRotateDeg(ribs)
+function [RotDeg,OneSideWwingTipRise_mm] = getDihedralRotateDeg(ribs)
 global X;
 [RootThickness_mm,~,~] = getThickness(ribs{1},0);
 [TipThickness_mm,~,~] = getThickness(ribs{X.OneSideRibCnt},0);
-RotDeg = -atand(((X.wingSpan_mm/2)*tand(X.dihedralDeg)+(RootThickness_mm-TipThickness_mm)/2)/(X.wingSpan_mm/2)); 
+OneSideWwingTipRise_mm = ((X.wingSpan_mm/2)*tand(X.dihedralDeg)+(RootThickness_mm-TipThickness_mm)/2);
+RotDeg = atand(OneSideWwingTipRise_mm/(X.wingSpan_mm/2)); 
 end
 
 function [AngleBtwBeamAndRibDeg,AngleBtwTEandRibDeg] = getObtuseAngleBtwBeamAndRibDeg(ribs_top_x)
