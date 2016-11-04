@@ -275,7 +275,9 @@ for ii = 1:X.OneSideRibCnt
 end
 
 [X.BeamRotDegDueToDihedral,OneSideWwingTipRise_mm] = getDihedralRotateDeg(slotcut_ribs);
-fprintf(1,'one side wing tiop rises %fmm',OneSideWwingTipRise_mm);
+fprintf(1,'one side wing tip rises %fmm\n',OneSideWwingTipRise_mm);
+fprintf(1,'beam Btm Edge Dihedral %fDeg\n',X.BeamRotDegDueToDihedral);
+
 %% cut slot for force bearing beam
 [slotcut_ribs,ribMirror] = cutRibSlot(slotcut_ribs,X.MainBeamWidth_mm-2*X.RibSlotCompensation_mm,X.MainBeamXmm,'main');
 fid = fopen(sprintf('ribMirror.scr'),'w');
