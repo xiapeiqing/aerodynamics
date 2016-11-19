@@ -8,12 +8,20 @@ scalingfactor = 0.45;
 NASA_wingSpan_mm = 3750;
 NASA_centerCord_mm = 400;
 NASA_tipcord_mm = 100;
+NASA_aliron_TrailingEdgelength_mm = 24.125*25.4;
+NASA_aliron_innerwidth_mm = 1.875*25.4;
+NASA_aliron_outerwidth_mm = 1*25.4;
+
 ribCnt = 39;
 X.LE_sweepbackDeg = 24;
 X.dihedralDeg = 2.5;
 X.wingSpan_mm = NASA_wingSpan_mm*scalingfactor;
 X.rootCord_mm = NASA_centerCord_mm*scalingfactor;
 X.wingtipCord_mm = NASA_tipcord_mm*scalingfactor;
+X.aliron_TrailingEdgelength_mm = NASA_aliron_TrailingEdgelength_mm*scalingfactor;
+X.aliron_innerwidth_mm = NASA_aliron_innerwidth_mm*scalingfactor;
+X.aliron_outerwidth_mm = NASA_aliron_outerwidth_mm*scalingfactor;
+fprintf(1,'aliron Trailing Edge length=%2.1fmm,aliron innerwidth=%2.1fmm,aliron outer width=%2.1fmm\n',X.aliron_TrailingEdgelength_mm,X.aliron_innerwidth_mm,X.aliron_outerwidth_mm);
 
 X.LeadingEdgeBeamThickness_mm = 2; % square edge size 
 X.LeadingEdgeBeamWidth_mm = 6; % square edge size 
