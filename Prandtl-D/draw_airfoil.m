@@ -8,33 +8,40 @@ scalingfactor = 0.45;
 NASA_wingSpan_mm = 3750;
 NASA_centerCord_mm = 400;
 NASA_tipcord_mm = 100;
-NASA_aliron_TrailingEdgelength_mm = 24.125*25.4;
-NASA_aliron_innerwidth_mm = 1.875*25.4;
-NASA_aliron_outerwidth_mm = 1*25.4;
+%aileron Trailing Edge length in mm
+%NASA_aileron_TrailingEdgelength_mm = 24.125*25.4;
+NASA_aileron_yAxislength_mm = 167.9;
+NASA_aileron_innerwidth_mm = 1.875*25.4;
+NASA_aileron_outerwidth_mm = 1*25.4;
 
-ribCnt = 39;
-X.LE_sweepbackDeg = 24;
-X.dihedralDeg = 2.5;
-X.wingSpan_mm = NASA_wingSpan_mm*scalingfactor;
-X.rootCord_mm = NASA_centerCord_mm*scalingfactor;
-X.wingtipCord_mm = NASA_tipcord_mm*scalingfactor;
-X.aliron_TrailingEdgelength_mm = NASA_aliron_TrailingEdgelength_mm*scalingfactor;
-X.aliron_innerwidth_mm = NASA_aliron_innerwidth_mm*scalingfactor;
-X.aliron_outerwidth_mm = NASA_aliron_outerwidth_mm*scalingfactor;
-fprintf(1,'aliron Trailing Edge length=%2.1fmm,aliron innerwidth=%2.1fmm,aliron outer width=%2.1fmm\n',X.aliron_TrailingEdgelength_mm,X.aliron_innerwidth_mm,X.aliron_outerwidth_mm);
+X.setting.geometry.LE_sweepbackDeg = 24;
+X.setting.geometry.dihedralDeg = 2.5;
+X.setting.geometry.wingSpan_mm = NASA_wingSpan_mm*scalingfactor;
+X.setting.geometry.rootCord_mm = NASA_centerCord_mm*scalingfactor;
+X.setting.geometry.wingtipCord_mm = NASA_tipcord_mm*scalingfactor;
+X.setting.aileron.yAxislength_mm = NASA_aileron_yAxislength_mm*scalingfactor;
+X.setting.aileron.innerwidth_mm = NASA_aileron_innerwidth_mm*scalingfactor;
+X.setting.aileron.outerwidth_mm = NASA_aileron_outerwidth_mm*scalingfactor;
+fprintf(1,'aileron Y axis length=%2.1fmm,aileron innerwidth=%2.1fmm,aileron outer width=%2.1fmm\n',X.setting.aileron.yAxislength_mm,X.setting.aileron.innerwidth_mm,X.setting.aileron.outerwidth_mm);
 
-X.LeadingEdgeBeamThickness_mm = 2; % square edge size 
-X.LeadingEdgeBeamWidth_mm = 6; % square edge size 
-X.trailingEdgeWidth_mm = 10;
+X.setting.manufacture.ribCnt = 39;
+X.setting.manufacture.LeadingEdgeBeamThickness_mm = 2; % square edge size 
+X.setting.manufacture.LeadingEdgeBeamWidth_mm = 6; % square edge size 
+X.setting.manufacture.trailingEdgeWidth_mm = 10;
 
-% support structure height, used in construction process
-X.RibMorrorSupportHeight_mm = 15;
+% support structure height, not part of the plane, only used in construction process as the base support structure for each rib 
+X.setting.manufacture.RibSupportStructureHeight_mm = 15;
 
-X.MainBeamWidth_mm = 6;
-X.MainBeamXmm = 0;
-assert(X.MainBeamXmm == 0); % we want the beam deployed at rotation center to have flat btm edge 
+X.setting.manufacture.MainBeamWidth_mm = 6;
+X.setting.manufacture.MainBeamXmm = 0;
+assert(X.setting.manufacture.MainBeamXmm == 0); % we want the beam deployed at rotation center to have flat btm edge 
 % X.BeamAux0Width_mm = 5;
 % X.BeamAux0Xmm = 5;
+
+X.RibCntNeedCarbon = 25;
+assert(mod(X.RibCntNeedCarbon,2)==1 || X.RibCntNeedCarbon == 0,'rib with added carbon beam should be symmetrical btw the fuselage');
+% we may want to add a square carbon tube to strengthen the beam
+X.beamSquareCarbonTubeSize_mm = 5;
 
 X.RibThickness_mm = 2;
 
@@ -50,21 +57,23 @@ X.PointType = [];
 X.PointType.fundamental = 1;
 X.PointType.addedPoints = 2;
 
+% increased by 1 after each beam slot cut
 X.ForceBearingBeamCnt = 0;
 
 X.curvefitmethod = 'pchip';
 % rootBeamGammaWidthmm = 6;
 % BaseBeamWidthmm = 1; % at tip, lift is zero, we cannot have 0 beam width for misc struct weight 
-assert(mod(ribCnt,2)==1); % we have one rib in the center, and be symmetrical 
+assert(mod(X.setting.manufacture.ribCnt,2)==1); % we have one rib in the center, and be symmetrical 
+% beam deployment location
 X.rotateFromLE = 0.3; %rotation occurs at the center of [0,1] from the leading edge, so that we have the desired AOA.  
 fineX = [0:0.001:0.05 0.06:0.01:0.90 0.901:0.001:1]';
 % fineX = [0:0.0005:1]';
-
 %%
 Len_fineX = length(fineX);
-X.OneSideRibCnt = (ribCnt+1)/2;
-RibCoeffsRoot2Tip = (0:X.OneSideRibCnt-1)/(X.OneSideRibCnt-1);
-
+X.OneSideRibCnt = (X.setting.manufacture.ribCnt+1)/2;
+aileronLocation = (X.setting.geometry.wingSpan_mm/2-X.setting.aileron.yAxislength_mm)/(X.setting.geometry.wingSpan_mm/2);
+X.setting.manufacture.RibCoeffsRoot2Tip = sort([aileronLocation (0:X.OneSideRibCnt-1)/(X.OneSideRibCnt-1)]);
+X.OneSideRibCnt = length(X.setting.manufacture.RibCoeffsRoot2Tip);
 %%
 centerlinex = centerlinex(:);
 centerliney = centerliney(:);
@@ -115,8 +124,8 @@ grid on;
 xlabel('unit');
 ylabel('unit');
 %%
-top_ribs = interpolate2Airfoil(top_centerline_fine_y, top_wingtip_mid_y, RibCoeffsRoot2Tip);
-btm_ribs = interpolate2Airfoil(btm_centerline_fine_y, btm_wingtip_mid_y, RibCoeffsRoot2Tip);
+top_ribs = interpolate2Airfoil(top_centerline_fine_y, top_wingtip_mid_y, X.setting.manufacture.RibCoeffsRoot2Tip);
+btm_ribs = interpolate2Airfoil(btm_centerline_fine_y, btm_wingtip_mid_y, X.setting.manufacture.RibCoeffsRoot2Tip);
 figure;
 axis equal;
 hold on;
@@ -156,7 +165,7 @@ ylabel('deg');
 grid on;
 xlabel('half wingspan');
 %%
-twist_ribs = interp1(twistx/twistx(end),twisty,RibCoeffsRoot2Tip,X.curvefitmethod);
+twist_ribs = interp1(twistx/twistx(end),twisty,X.setting.manufacture.RibCoeffsRoot2Tip,X.curvefitmethod);
 
 rotated_ribs_top_x = zeros(Len_fineX,X.OneSideRibCnt);
 rotated_ribs_top_y = zeros(Len_fineX,X.OneSideRibCnt);
@@ -187,7 +196,7 @@ scaled_ribs_top_x = rotated_ribs_top_x;
 scaled_ribs_top_y = rotated_ribs_top_y;
 scaled_ribs_btm_x = rotated_ribs_btm_x;
 scaled_ribs_btm_y = rotated_ribs_btm_y;
-scale_ribs = interp1([0 1],[X.rootCord_mm X.wingtipCord_mm],RibCoeffsRoot2Tip,'linear');
+scale_ribs = interp1([0 1],[X.setting.geometry.rootCord_mm X.setting.geometry.wingtipCord_mm],X.setting.manufacture.RibCoeffsRoot2Tip,'linear');
 
 figure;
 axis equal;
@@ -225,45 +234,44 @@ xlabel('mm');
 ylabel('mm');
 
 %% compute angle between beam and rib
-[X.AngleBtwBeamAndRibDeg,X.AngleBtwTEandRibDeg] = getObtuseAngleBtwBeamAndRibDeg(btmaligned_ribs_top_x);
+CalcObtuseAngleBtwBeamAndRibDeg(btmaligned_ribs_top_x);
 space = 10;
 fid = fopen('BeamRibSupport.scr','w');
 fprintf(fid,'pline\n');
 % quadrant 1
 fprintf(fid,'%f,%f\n',space,space);
 fprintf(fid,'%f,%f\n',space,space+X.BeamRibSupport_mm);
-fprintf(fid,'%f,%f\n',space+X.BeamRibSupport_mm*sind(X.AngleBtwBeamAndRibDeg),space-X.BeamRibSupport_mm*cosd(X.AngleBtwBeamAndRibDeg));
+fprintf(fid,'%f,%f\n',space+X.BeamRibSupport_mm*sind(X.derived.AngleBtwBeamAndRibDeg),space-X.BeamRibSupport_mm*cosd(X.derived.AngleBtwBeamAndRibDeg));
 fprintf(fid,'%f,%f\n',space,space);
 
 % quadrant 2
 fprintf(fid,'%f,%f\n',-space,space);
 fprintf(fid,'%f,%f\n',-space,space+X.BeamRibSupport_mm);
-fprintf(fid,'%f,%f\n',-space-X.BeamRibSupport_mm*sind(X.AngleBtwBeamAndRibDeg),space+X.BeamRibSupport_mm*cosd(X.AngleBtwBeamAndRibDeg));
+fprintf(fid,'%f,%f\n',-space-X.BeamRibSupport_mm*sind(X.derived.AngleBtwBeamAndRibDeg),space+X.BeamRibSupport_mm*cosd(X.derived.AngleBtwBeamAndRibDeg));
 fprintf(fid,'%f,%f\n',-space,space);
 
 % quadrant 3
 fprintf(fid,'%f,%f\n',-space,-space);
 fprintf(fid,'%f,%f\n',-space,-space-X.BeamRibSupport_mm);
-fprintf(fid,'%f,%f\n',-space-X.BeamRibSupport_mm*sind(X.AngleBtwBeamAndRibDeg),-space+X.BeamRibSupport_mm*cosd(X.AngleBtwBeamAndRibDeg));
+fprintf(fid,'%f,%f\n',-space-X.BeamRibSupport_mm*sind(X.derived.AngleBtwBeamAndRibDeg),-space+X.BeamRibSupport_mm*cosd(X.derived.AngleBtwBeamAndRibDeg));
 fprintf(fid,'%f,%f\n',-space,-space);
 
 % quadrant 4
 fprintf(fid,'%f,%f\n',space,-space);
 fprintf(fid,'%f,%f\n',space,-space-X.BeamRibSupport_mm);
-fprintf(fid,'%f,%f\n',space+X.BeamRibSupport_mm*sind(X.AngleBtwBeamAndRibDeg),-space-X.BeamRibSupport_mm*cosd(X.AngleBtwBeamAndRibDeg));
+fprintf(fid,'%f,%f\n',space+X.BeamRibSupport_mm*sind(X.derived.AngleBtwBeamAndRibDeg),-space-X.BeamRibSupport_mm*cosd(X.derived.AngleBtwBeamAndRibDeg));
 fprintf(fid,'%f,%f\n',space,-space);
 
 fclose(fid);
-fprintf(1,'AngleBtwBeamAndRibDeg=%f,AngleBtwTEandRibDeg=%f\n',X.AngleBtwBeamAndRibDeg,X.AngleBtwTEandRibDeg);
 %%
-Gamma = (1-RibCoeffsRoot2Tip.^2).^1.5;
+Gamma = (1-X.setting.manufacture.RibCoeffsRoot2Tip.^2).^1.5;
 figure;
-plot(RibCoeffsRoot2Tip,Gamma,'.-');
+plot(X.setting.manufacture.RibCoeffsRoot2Tip,Gamma,'.-');
 title('Gamma, airflow circulation');
 grid on;
 %%
 figure;
-plot(RibCoeffsRoot2Tip,1.5*(RibCoeffsRoot2Tip.^2-0.5),'.-');
+plot(X.setting.manufacture.RibCoeffsRoot2Tip,1.5*(X.setting.manufacture.RibCoeffsRoot2Tip.^2-0.5),'.-');
 title('Downwash');
 grid on;
 
@@ -286,12 +294,15 @@ end
 fprintf(1,'one side wing tip rises %fmm\n',OneSideWwingTipRise_mm);
 fprintf(1,'beam Btm Edge Dihedral %fDeg\n',X.BeamRotDegDueToDihedral);
 
+%%
+X.derived.RibLocInBeam_mm = X.setting.manufacture.RibCoeffsRoot2Tip*(1/sind(X.derived.AngleBtwBeamAndRibDeg))*X.setting.geometry.wingSpan_mm/2;
+
 %% cut slot for force bearing beam
-[slotcut_ribs,ribMirror] = cutRibSlot(slotcut_ribs,X.MainBeamWidth_mm-2*X.RibSlotCompensation_mm,X.MainBeamXmm,'main');
+[slotcut_ribs,ribMirror] = cutRibSlot(slotcut_ribs,X.setting.manufacture.MainBeamWidth_mm-2*X.RibSlotCompensation_mm,X.setting.manufacture.MainBeamXmm,'main beam');
 fid = fopen(sprintf('ribMirror.scr'),'w');
 fprintf(fid,'pline\n');
 for ii = 1:X.OneSideRibCnt
-    saveTopBtmCell2scrFile(fid,ii,0,50,ribMirror{ii});
+    saveTopBtmCell2scrFile(fid,ribMirror{ii},0,100);
 end
 fclose(fid);
 
@@ -306,7 +317,7 @@ for ii = 1:X.OneSideRibCnt
     LeadingEdgeBeamPosDetected = false;
     for xposition = LE_x:0.001:LE_x+30
         [Thickness_mm,~,~] = getThickness(slotcut_ribs{ii},xposition);
-        if Thickness_mm > X.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm
+        if Thickness_mm > X.setting.manufacture.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm
             LeadingEdgeBeamPosDetected = true;
             break;
         end
@@ -332,8 +343,8 @@ figure;
 axis equal;
 hold on;
 for ii = 1:X.OneSideRibCnt
-    cut_trailingedge{ii}.top = removeTrailingSector(cut_trailingedge{ii}.top,X.trailingEdgeWidth_mm);
-    cut_trailingedge{ii}.btm = removeTrailingSector(cut_trailingedge{ii}.btm,X.trailingEdgeWidth_mm);
+    cut_trailingedge{ii}.top = removeTrailingSector(cut_trailingedge{ii}.top,X.setting.manufacture.trailingEdgeWidth_mm);
+    cut_trailingedge{ii}.btm = removeTrailingSector(cut_trailingedge{ii}.btm,X.setting.manufacture.trailingEdgeWidth_mm);
     plot([cut_trailingedge{ii}.top.x; cut_trailingedge{ii}.btm.x],[cut_trailingedge{ii}.top.y; cut_trailingedge{ii}.btm.y],'.');
 end
 title('Ribs:shifted,rotated,scaled,LEcut,TEcut');
@@ -341,7 +352,7 @@ grid on;
 xlabel('mm');
 ylabel('mm');
 
-%% rotate rib back in order to enhance the strength
+% rotate rib to align camber line with wood growth direction in order to enhance the strength
 rib_aligned = cell(1,X.OneSideRibCnt);
 figure;
 axis equal;
@@ -359,17 +370,19 @@ ylabel('mm');
 %% produce rib cut cad file
 fid = fopen('airfoil_all.scr','w');
 fprintf(fid,'pline\n');
+X.derived.RibSweepBackAlongRib_mm = X.setting.manufacture.RibCoeffsRoot2Tip*X.setting.geometry.wingSpan_mm/2/abs(tand(X.derived.AngleBtwBeamAndRibDeg));
+X.derived.RibSweepBackAlongBeam_mm = X.setting.manufacture.RibCoeffsRoot2Tip*X.setting.geometry.wingSpan_mm/2;
 for ii = 1:X.OneSideRibCnt
-    saveTopBtmCell2scrFile(fid,ii,0,50,rib_aligned{ii});
+    xoffset = X.derived.RibSweepBackAlongRib_mm(ii);
+    yoffset = X.derived.RibSweepBackAlongBeam_mm(ii);
+    saveTopBtmCell2scrFile(fid,rib_aligned{ii},xoffset,yoffset);
 end
 fclose(fid);
 
 %% produce force bearing beam cut cad file
-RibLocInBeamXmm = RibCoeffsRoot2Tip*(1/sind(X.AngleBtwBeamAndRibDeg))*X.wingSpan_mm/2;
 FineSegmentCnt = 1000;
 
 BeamShape = cell(1,X.ForceBearingBeamCnt);
-BeamShapeCutRibSlot = cell(1,X.ForceBearingBeamCnt);
 BeamDihedralApplied = cell(1,X.ForceBearingBeamCnt);
 BeamAlignedForStrength = cell(1,X.ForceBearingBeamCnt);
 BeamLaserTraceCompensated = cell(1,X.ForceBearingBeamCnt);
@@ -386,39 +399,39 @@ for iiBeam = 1:X.ForceBearingBeamCnt
     figure;
     subplot(3,1,1);
     hold on;
-    plot(RibLocInBeamXmm,ThicknessVec,'.-');
-    plot(RibLocInBeamXmm,ThicknessVec+Yoffset,'.-');
+    plot(X.derived.RibLocInBeam_mm,ThicknessVec,'.-');
+    plot(X.derived.RibLocInBeam_mm,ThicknessVec+Yoffset,'.-');
     legend('Thickness','Thickness+yoffset');
     axis equal;
     xlabel('single side wingspan(mm)');
     ylabel('mm');
     title(sprintf('Top Edge Beam No.%d',iiBeam));
     subplot(3,1,2);
-    plot(RibLocInBeamXmm,Yoffset,'.-');
+    plot(X.derived.RibLocInBeam_mm,Yoffset,'.-');
     axis equal;
     xlabel('single side wingspan(mm)');
     ylabel('mm');
     title(sprintf('Btm Edge Beam No.%d',iiBeam));
     subplot(3,1,3);
     hold on;
-    plot(RibLocInBeamXmm,CutDepthVec,'.-');
-    plot(RibLocInBeamXmm,CutDepthVec+Yoffset,'.-');
+    plot(X.derived.RibLocInBeam_mm,CutDepthVec,'.-');
+    plot(X.derived.RibLocInBeam_mm,CutDepthVec+Yoffset,'.-');
     legend('pure cut','cut+yoffset');
     axis equal;
     xlabel('single side wingspan(mm)');
     ylabel('mm');
     title(sprintf('Rib Cut Depth for Beam No.%d',iiBeam));
     
-    fineRibLocationXmm = ((0:FineSegmentCnt)/FineSegmentCnt)*(X.wingSpan_mm/2)*(1/sind(X.AngleBtwBeamAndRibDeg));
+    fineRibLocationXmm = ((0:FineSegmentCnt)/FineSegmentCnt)*(X.setting.geometry.wingSpan_mm/2)*(1/sind(X.derived.AngleBtwBeamAndRibDeg));
     BeamShape{iiBeam}.top = [];
     BeamShape{iiBeam}.top.x = fineRibLocationXmm';
-    BeamShape{iiBeam}.top.y = interp1(RibLocInBeamXmm,ThicknessVec+Yoffset,fineRibLocationXmm,X.curvefitmethod)';
+    BeamShape{iiBeam}.top.y = interp1(X.derived.RibLocInBeam_mm,ThicknessVec+Yoffset,fineRibLocationXmm,X.curvefitmethod)';
     BeamShape{iiBeam}.top.PointType = ones(length(fineRibLocationXmm),1)*X.PointType.fundamental;
 
     % if beam location is at the rotation center, btm edge is a straight line 
     BeamShape{iiBeam}.btm = [];
     BeamShape{iiBeam}.btm.x = fineRibLocationXmm';
-    BeamShape{iiBeam}.btm.y = interp1(RibLocInBeamXmm,Yoffset,fineRibLocationXmm,X.curvefitmethod)';
+    BeamShape{iiBeam}.btm.y = interp1(X.derived.RibLocInBeam_mm,Yoffset,fineRibLocationXmm,X.curvefitmethod)';
     BeamShape{iiBeam}.btm.PointType = ones(length(fineRibLocationXmm),1)*X.PointType.fundamental;
     
     BeamDihedralApplied{iiBeam} = ApplyBeamDihedral(BeamShape{iiBeam},-X.BeamRotDegDueToDihedral);
@@ -433,7 +446,7 @@ for iiBeam = 1:X.ForceBearingBeamCnt
             otherwise
                StyleCutRibSlot = 'MiddleRib';
         end
-        BeamShapeCutRibSlot{iiBeam}.top = cutBeamSlot(BeamShapeCutRibSlot{iiBeam}.top,CutDepthVec(CutSlotForRib_ii),X.RibThickness_mm-2*X.beamSlotTraceCompensation_mm,RibLocInBeamXmm(CutSlotForRib_ii),StyleCutRibSlot);
+        BeamShapeCutRibSlot{iiBeam}.top = cutBeamSlot(BeamShapeCutRibSlot{iiBeam}.top,CutDepthVec(CutSlotForRib_ii),X.RibThickness_mm-2*X.beamSlotTraceCompensation_mm,X.derived.RibLocInBeam_mm(CutSlotForRib_ii),StyleCutRibSlot);
     end
     BeamShapeCutRibSlot{iiBeam}.btm = matchCurveSpan(BeamDihedralApplied{iiBeam}.btm,BeamShapeCutRibSlot{iiBeam}.top);
     draw_beam(BeamShapeCutRibSlot{iiBeam},sprintf('front view Beam%d',iiBeam));
@@ -448,7 +461,7 @@ for iiBeam = 1:X.ForceBearingBeamCnt
     
     fid = fopen(sprintf('beam_%d.scr',iiBeam),'w');
     fprintf(fid,'pline\n');
-    saveTopBtmCell2scrFile(fid,iiBeam,0,100,BeamLaserTraceCompensated{iiBeam});
+    saveTopBtmCell2scrFile(fid,BeamLaserTraceCompensated{iiBeam},0,100);
     fclose(fid);
     
 end
@@ -582,20 +595,28 @@ function [RotDeg,OneSideWwingTipRise_mm] = getDihedralRotateDeg(ribs)
 global X;
 [RootThickness_mm,~,~] = getThickness(ribs{1},0);
 [TipThickness_mm,~,~] = getThickness(ribs{X.OneSideRibCnt},0);
-OneSideWwingTipRise_mm = ((X.wingSpan_mm/2)*tand(X.dihedralDeg)+(RootThickness_mm-TipThickness_mm)/2);
-RotDeg = atand(OneSideWwingTipRise_mm/(X.wingSpan_mm/2)); 
+OneSideWwingTipRise_mm = ((X.setting.geometry.wingSpan_mm/2)*tand(X.setting.geometry.dihedralDeg)+(RootThickness_mm-TipThickness_mm)/2);
+RotDeg = atand(OneSideWwingTipRise_mm/(X.setting.geometry.wingSpan_mm/2)); 
 end
 
-function [AngleBtwBeamAndRibDeg,AngleBtwTEandRibDeg] = getObtuseAngleBtwBeamAndRibDeg(ribs_top_x)
+function CalcObtuseAngleBtwBeamAndRibDeg(ribs_top_x)
+% base on the input arguments:
+%   1) Leading edge sweep back angle in degree
+%   2) distance from beam center(x position = 0) to the Leading and Trailing edge  
+% calculate the obtuse angle Btw
+%   1) Beam and Rib in degree
+%   2) trailing edge and rib in degree
 global X;
 root_LE_x = -ribs_top_x(1,1);
 tip_LE_x = -ribs_top_x(1,X.OneSideRibCnt);
-LE_DeltaX = tan(X.LE_sweepbackDeg*pi/180)*X.wingSpan_mm/2;
+LE_DeltaX = tan(X.setting.geometry.LE_sweepbackDeg*pi/180)*X.setting.geometry.wingSpan_mm/2;
 beam_DeltaX = LE_DeltaX + tip_LE_x - root_LE_x;
-AngleBtwBeamAndRibDeg = atan(beam_DeltaX/(X.wingSpan_mm/2))*180/pi+90;
-
-AngleBtwTEandRibDeg = atan((LE_DeltaX+X.wingtipCord_mm-X.rootCord_mm)/(X.wingSpan_mm/2))*180/pi+90;
-
+X.derived.AngleBtwBeamAndRibDeg = atan(beam_DeltaX/(X.setting.geometry.wingSpan_mm/2))*180/pi+90;
+X.derived.AngleBtwTEandRibDeg = atan((LE_DeltaX+X.setting.geometry.wingtipCord_mm-X.setting.geometry.rootCord_mm)/(X.setting.geometry.wingSpan_mm/2))*180/pi+90;
+fprintf(1,'Given Leading edge sweep back angle = %2.1fdeg, the obtuse angle btw Beam & Rib = %2.1fdeg, btw Trailing edge & Rib = %2.1fdeg\n',...
+    X.setting.geometry.LE_sweepbackDeg,...
+    X.derived.AngleBtwBeamAndRibDeg,...
+    X.derived.AngleBtwTEandRibDeg);
 end
 
 function NewCurve = AddStraightLineBtmBeamEdge(Curve)
@@ -620,11 +641,8 @@ yy = [TopBtmCell.top.y; TopBtmCell.btm.y];
 assert(length(xx)==length(yy));
 end
 
-function saveTopBtmCell2scrFile(fid,idx,xoffset,yoffset,TopBtmCell)
+function saveTopBtmCell2scrFile(fid,TopBtmCell,xoffset,yoffset)
 [xx,yy] = OrderDataForPlot(TopBtmCell);
-
-xoffset = (idx-1)*xoffset;
-yoffset = (idx-1)*yoffset;
 
 for ii = 1:length(xx)
     fprintf(fid,'%f,%f\n',xx(ii)+xoffset,yy(ii)+yoffset);
@@ -648,12 +666,12 @@ end
 function newcurve = cutLeadingEdgeSlot(curve,edgetype,Thickness_mm)
 global X;
 newcurve = [];
-assert( Thickness_mm > X.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm);
+assert( Thickness_mm > X.setting.manufacture.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm);
 
 LE_x = curve.x(1);
 LE_y = curve.y(1);
 
-yshift = ( Thickness_mm - (X.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm))/2;
+yshift = ( Thickness_mm - (X.setting.manufacture.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm))/2;
 
 switch edgetype
     case 'top'
@@ -667,7 +685,7 @@ newcurve.x = [LE_x;curve.x];
 newcurve.y = [precise_y;curve.y];
 newcurve.PointType = [X.PointType.addedPoints;curve.PointType];
 
-newcurve.x = [LE_x+X.LeadingEdgeBeamWidth_mm;newcurve.x];
+newcurve.x = [LE_x+X.setting.manufacture.LeadingEdgeBeamWidth_mm;newcurve.x];
 newcurve.y = [precise_y;newcurve.y];
 newcurve.PointType = [X.PointType.addedPoints;newcurve.PointType];
 end
@@ -723,18 +741,27 @@ axis equal;
 hold on;
 for ii = 1:X.OneSideRibCnt
     ribMirror{ii}.top = cutslotIn1curve(ribs{ii}.btm,2,width,xposition,'cutBoth');
-    
     [thickness,~,btm_mm] = getThickness(ribs{ii},xposition);
     [ribs{ii}.top.x,ribs{ii}.top.y] = cutnothing(ribs{ii}.top.x,ribs{ii}.top.y);
     cutDepth = thickness/2;
-    ribs{ii}.btm = cutslotIn1curve(ribs{ii}.btm,-cutDepth,width,xposition,'cutBoth');
+    if X.RibCntNeedCarbon == 0
+        RibCntOneSideNeedCarbon = 0;
+    else
+        RibCntOneSideNeedCarbon = (X.RibCntNeedCarbon+1)/2;
+    end
+    if ii > RibCntOneSideNeedCarbon
+        ribs{ii}.btm = cutslotIn1curve(ribs{ii}.btm,-cutDepth,width,xposition,'cutBoth');
+    else
+        % we attach a square carbon tube to strengthen the wood beam
+        ribs{ii}.btm = cutslotIn1curve(ribs{ii}.btm,-cutDepth,width,xposition,'cutBothAndAddedCarbon');
+    end
     ribs{ii}.ForceBearingBeamCutDepth = [ribs{ii}.ForceBearingBeamCutDepth;cutDepth];
     ribs{ii}.ForceBearingBeamRibThickness  = [ribs{ii}.ForceBearingBeamRibThickness;thickness];
     ribs{ii}.ForceBearingBeamRibYoffset = [ribs{ii}.ForceBearingBeamRibYoffset;btm_mm];
     plot([ribs{ii}.top.x; ribs{ii}.btm.x],[ribs{ii}.top.y; ribs{ii}.btm.y],'.');
     
     ribMirror{ii}.btm.x = [min(ribs{ii}.top.x);max(ribs{ii}.top.x)];
-    ribMirror{ii}.btm.y = -ones(2,1)*X.RibMorrorSupportHeight_mm;
+    ribMirror{ii}.btm.y = -ones(2,1)*X.setting.manufacture.RibSupportStructureHeight_mm;
     ribMirror{ii}.btm.PointType = ones(2,1)*X.PointType.fundamental;
 end
 title(['Ribs:shifted,rotated,scaled,slotcut' slotName]);
@@ -798,8 +825,8 @@ end
 function NewCurve = cutslotIn1curve(Curve,depth,width,xposition,cutmethod)
 % x,y form the curve
 % depth: depth to be cut. 
-%   +: cut to Y-
-%   -: cut to Y+
+%   +: cut to Y-, downward, for example, top edge
+%   -: cut to Y+, upward, for example, bottom edge
 % width: width to be cut
 % xposition: relative to xposition, cut width/2 to X+ and X-
 % cutmethod:
@@ -815,54 +842,86 @@ NewCurve = [];
 NewCurve.x = [];
 NewCurve.y = [];
 NewCurve.PointType = [];
-LE_beamEdgeX = xposition-width/2;
-TE_beamEdgeX = xposition+width/2;
+beamLeadingEdgeX = xposition-width/2;
+beamTrailingEdgeX = xposition+width/2;
 
 switch cutmethod
     case 'cutLeft'
         % do nothing
-    case {'cutRight','cutBoth'}
-        indexBeforeLEcut = find(Curve.x<=LE_beamEdgeX);
+    case {'cutRight','cutBoth','cutBothAndAddedCarbon'}
+        indexBeforeLEcut = find(Curve.x<=beamLeadingEdgeX);
         NewCurve.x = Curve.x(indexBeforeLEcut);
         NewCurve.y = Curve.y(indexBeforeLEcut);
         NewCurve.PointType = Curve.PointType(indexBeforeLEcut);
-        y_valueLE = interp1nearby(Curve.x,Curve.y,Curve.PointType,LE_beamEdgeX,2,X.curvefitmethod);
-        if ismember(LE_beamEdgeX,Curve.x)
+        y_valueLE = interp1nearby(Curve.x,Curve.y,Curve.PointType,beamLeadingEdgeX,2,X.curvefitmethod);
+        if ismember(beamLeadingEdgeX,Curve.x)
             % we don't need to insert the point and begin slot cut
         else
-            NewCurve.x = [NewCurve.x;LE_beamEdgeX];
+            NewCurve.x = [NewCurve.x;beamLeadingEdgeX];
             NewCurve.y = [NewCurve.y;y_valueLE];
             NewCurve.PointType = [NewCurve.PointType;X.PointType.fundamental];
         end
     otherwise
         assert(false);
 end
-y_valueSlotCenterPosition = interp1nearby(Curve.x,Curve.y,Curve.PointType,xposition,2,X.curvefitmethod);
+y_valueSlotLeftEdge = interp1nearby(Curve.x,Curve.y,Curve.PointType,xposition-width/2,2,X.curvefitmethod);
+y_valueSlotRightEdge = interp1nearby(Curve.x,Curve.y,Curve.PointType,xposition+width/2,2,X.curvefitmethod);
 
-NewCurve.x = [NewCurve.x;LE_beamEdgeX];
-NewCurve.y = [NewCurve.y;y_valueSlotCenterPosition - depth];
+% depth: depth to be cut. 
+%   +: cut to Y-, downward, for example, top edge
+%   -: cut to Y+, upward, for example, bottom edge
+if (depth > 0)
+    SlotcutDestination = min([y_valueSlotLeftEdge y_valueSlotRightEdge]) - depth;
+else
+    SlotcutDestination = max([y_valueSlotLeftEdge y_valueSlotRightEdge]) - depth;
+end
+
+NewCurve.x = [NewCurve.x;beamLeadingEdgeX];
+NewCurve.y = [NewCurve.y;SlotcutDestination];
 NewCurve.PointType = [NewCurve.PointType;X.PointType.addedPoints];
 
-NewCurve.x = [NewCurve.x;TE_beamEdgeX];
-NewCurve.y = [NewCurve.y;y_valueSlotCenterPosition - depth];
+NewCurve.x = [NewCurve.x;beamTrailingEdgeX];
+NewCurve.y = [NewCurve.y;SlotcutDestination];
 NewCurve.PointType = [NewCurve.PointType;X.PointType.addedPoints];
 
 switch cutmethod
     case 'cutRight'
         % do nothing
     case {'cutLeft','cutBoth'}
-        y_valueTE = interp1nearby(Curve.x,Curve.y,Curve.PointType,TE_beamEdgeX,2,X.curvefitmethod);
-        if ismember(TE_beamEdgeX,Curve.x)
-            % we don't need to insert the point and begin slot cut
-        else
-            NewCurve.x = [NewCurve.x;TE_beamEdgeX];
+        if ~ismember(beamTrailingEdgeX,Curve.x)
+            y_valueTE = interp1nearby(Curve.x,Curve.y,Curve.PointType,beamTrailingEdgeX,2,X.curvefitmethod);
+            NewCurve.x = [NewCurve.x;beamTrailingEdgeX];
+            NewCurve.y = [NewCurve.y;y_valueTE];
+            NewCurve.PointType = [NewCurve.PointType;X.PointType.fundamental];
+        end
+    case 'cutBothAndAddedCarbon'
+        carbinTubeCutDestination = SlotcutDestination + depth + X.beamSquareCarbonTubeSize_mm;
+        NewCurve.x = [NewCurve.x;beamTrailingEdgeX];
+        NewCurve.y = [NewCurve.y;carbinTubeCutDestination];
+        NewCurve.PointType = [NewCurve.PointType;X.PointType.addedPoints];
+        TE_X_withCarbon_mm = beamTrailingEdgeX + X.beamSquareCarbonTubeSize_mm;
+        NewCurve.x = [NewCurve.x;TE_X_withCarbon_mm];
+        NewCurve.y = [NewCurve.y;carbinTubeCutDestination];
+        NewCurve.PointType = [NewCurve.PointType;X.PointType.addedPoints];
+        
+        if ~ismember(TE_X_withCarbon_mm,Curve.x)
+            y_valueTE = interp1nearby(Curve.x,Curve.y,Curve.PointType,TE_X_withCarbon_mm,2,X.curvefitmethod);
+            NewCurve.x = [NewCurve.x;TE_X_withCarbon_mm];
             NewCurve.y = [NewCurve.y;y_valueTE];
             NewCurve.PointType = [NewCurve.PointType;X.PointType.fundamental];
         end
     otherwise
         assert(false);
 end
-indexAfterTEcut = find(Curve.x>=TE_beamEdgeX);
+
+switch cutmethod
+    case {'cutLeft','cutRight','cutBoth'}
+        indexAfterTEcut = find(Curve.x>=beamTrailingEdgeX);
+    case 'cutBothAndAddedCarbon'
+        indexAfterTEcut = find(Curve.x>=beamTrailingEdgeX+X.beamSquareCarbonTubeSize_mm);
+    otherwise
+        assert(false);
+end
 
 NewCurve.x = [NewCurve.x;Curve.x(indexAfterTEcut)];
 NewCurve.y = [NewCurve.y;Curve.y(indexAfterTEcut)];
