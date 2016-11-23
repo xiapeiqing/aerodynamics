@@ -10,7 +10,7 @@ NASA_centerCord_mm = 400;
 NASA_tipcord_mm = 100;
 %aileron Trailing Edge length in mm
 %NASA_aileron_TrailingEdgelength_mm = 24.125*25.4;
-NASA_aileron_yAxislength_mm = 167.9;
+NASA_aileron_yAxislength_mm = 22.125*25.4;
 NASA_aileron_innerwidth_mm = 1.875*25.4;
 NASA_aileron_outerwidth_mm = 1*25.4;
 
