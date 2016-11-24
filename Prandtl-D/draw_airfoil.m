@@ -4,7 +4,7 @@ close all;
 load airfoil centerlinex centerliney wingtipx wingtipy twistx twisty;
 global X;
 X = [];
-scalingfactor = 0.45;
+scalingfactor = 0.8;
 NASA_wingSpan_mm = 3750;
 NASA_centerCord_mm = 400;
 NASA_tipcord_mm = 100;
@@ -24,7 +24,7 @@ X.setting.aileron.innerwidth_mm = NASA_aileron_innerwidth_mm*scalingfactor;
 X.setting.aileron.outerwidth_mm = NASA_aileron_outerwidth_mm*scalingfactor;
 fprintf(1,'aileron Y axis length=%2.1fmm,aileron innerwidth=%2.1fmm,aileron outer width=%2.1fmm\n',X.setting.aileron.yAxislength_mm,X.setting.aileron.innerwidth_mm,X.setting.aileron.outerwidth_mm);
 
-X.setting.manufacture.ribCnt = 39;
+X.setting.manufacture.ribCnt = 61;
 X.setting.manufacture.LeadingEdgeBeamThickness_mm = 2; % square edge size 
 X.setting.manufacture.LeadingEdgeBeamWidth_mm = 6; % square edge size 
 X.setting.manufacture.trailingEdgeWidth_mm = 10;
@@ -38,7 +38,7 @@ assert(X.setting.manufacture.MainBeamXmm == 0); % we want the beam deployed at r
 % X.BeamAux0Width_mm = 5;
 % X.BeamAux0Xmm = 5;
 
-X.RibCntNeedCarbon = 25;
+X.RibCntNeedCarbon = 41;
 assert(mod(X.RibCntNeedCarbon,2)==1 || X.RibCntNeedCarbon == 0,'rib with added carbon beam should be symmetrical btw the fuselage');
 % we may want to add a square carbon tube to strengthen the beam
 X.beamSquareCarbonTubeSize_mm = 5;
@@ -72,7 +72,25 @@ fineX = [0:0.001:0.05 0.06:0.01:0.90 0.901:0.001:1]';
 Len_fineX = length(fineX);
 X.OneSideRibCnt = (X.setting.manufacture.ribCnt+1)/2;
 aileronLocation = (X.setting.geometry.wingSpan_mm/2-X.setting.aileron.yAxislength_mm)/(X.setting.geometry.wingSpan_mm/2);
-X.setting.manufacture.RibCoeffsRoot2Tip = sort([aileronLocation (0:X.OneSideRibCnt-1)/(X.OneSideRibCnt-1)]);
+ribLocation = (0:X.OneSideRibCnt-1)/(X.OneSideRibCnt-1);
+figure;
+plot(ribLocation,zeros(1,length(ribLocation)),'o');
+hold on;
+plot(aileronLocation,0,'rx');
+hold off;
+legend('rib','aileron');
+ButtonName = questdlg('added aileron location acceptable?', ...
+    'if there exists a rib in aileron location, we don''t need to design an extra rib', ...
+    'accept','ignore Aileron','exit',...
+    'accept');
+switch ButtonName
+    case 'accept'
+        X.setting.manufacture.RibCoeffsRoot2Tip = sort([aileronLocation ribLocation]);
+    case 'ignore Aileron'
+        X.setting.manufacture.RibCoeffsRoot2Tip = ribLocation;
+    otherwise
+        assert(false);
+end
 X.OneSideRibCnt = length(X.setting.manufacture.RibCoeffsRoot2Tip);
 %%
 centerlinex = centerlinex(:);
@@ -302,7 +320,7 @@ X.derived.RibLocInBeam_mm = X.setting.manufacture.RibCoeffsRoot2Tip*(1/sind(X.de
 fid = fopen(sprintf('ribMirror.scr'),'w');
 fprintf(fid,'pline\n');
 for ii = 1:X.OneSideRibCnt
-    saveTopBtmCell2scrFile(fid,ribMirror{ii},0,100);
+    saveTopBtmCell2scrFile(fid,ribMirror{ii},0,ii*100);
 end
 fclose(fid);
 

@@ -1,3 +1,6 @@
+# matlab asv files
+*.asv
+
 # Compiled Object files
 *.slo
 *.lo
@@ -28,4 +31,6 @@
 *.out
 *.app
 
+# program generated results
 Prandtl-D/DWG
+*.scr
