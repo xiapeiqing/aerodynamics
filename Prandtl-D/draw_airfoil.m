@@ -2,27 +2,28 @@ function draw_airfoil()
 % save airfoil centerlinex centerliney wingtipx wingtipy twistx twisty
 close all;
 load airfoil centerlinex centerliney wingtipx wingtipy twistx twisty;
-global X;
-X = [];
-scalingfactor = 0.8;
+scalingfactor = 0.45;
 NASA_wingSpan_mm = 3750;
 NASA_centerCord_mm = 400;
 NASA_tipcord_mm = 100;
-%aileron Trailing Edge length in mm
-%NASA_aileron_TrailingEdgelength_mm = 24.125*25.4;
+% length of aileron measured in the right direction, not along the sweepback direction 
 NASA_aileron_yAxislength_mm = 22.125*25.4;
 NASA_aileron_innerwidth_mm = 1.875*25.4;
 NASA_aileron_outerwidth_mm = 1*25.4;
-
+%%
+global X;
+X = [];
 X.setting.geometry.LE_sweepbackDeg = 24;
-X.setting.geometry.dihedralDeg = 2.5;
+% Dihedral is an angle raising the centerline of the wing tip above the centerline of the wing root.
+X.setting.geometry.dihedralDeg = 0;
 X.setting.geometry.wingSpan_mm = NASA_wingSpan_mm*scalingfactor;
 X.setting.geometry.rootCord_mm = NASA_centerCord_mm*scalingfactor;
 X.setting.geometry.wingtipCord_mm = NASA_tipcord_mm*scalingfactor;
 X.setting.aileron.yAxislength_mm = NASA_aileron_yAxislength_mm*scalingfactor;
 X.setting.aileron.innerwidth_mm = NASA_aileron_innerwidth_mm*scalingfactor;
 X.setting.aileron.outerwidth_mm = NASA_aileron_outerwidth_mm*scalingfactor;
-fprintf(1,'aileron Y axis length=%2.1fmm,aileron innerwidth=%2.1fmm,aileron outer width=%2.1fmm\n',X.setting.aileron.yAxislength_mm,X.setting.aileron.innerwidth_mm,X.setting.aileron.outerwidth_mm);
+fprintf(1,'Summary Report\n');
+fprintf(1,'aileron\n\tY axis length=%2.1fmm\n\taileron inner width=%2.1fmm\n\taileron outer width=%2.1fmm\n',X.setting.aileron.yAxislength_mm,X.setting.aileron.innerwidth_mm,X.setting.aileron.outerwidth_mm);
 
 X.setting.manufacture.ribCnt = 61;
 X.setting.manufacture.LeadingEdgeBeamThickness_mm = 2; % square edge size 
@@ -35,8 +36,6 @@ X.setting.manufacture.RibSupportStructureHeight_mm = 15;
 X.setting.manufacture.MainBeamWidth_mm = 6;
 X.setting.manufacture.MainBeamXmm = 0;
 assert(X.setting.manufacture.MainBeamXmm == 0); % we want the beam deployed at rotation center to have flat btm edge 
-% X.BeamAux0Width_mm = 5;
-% X.BeamAux0Xmm = 5;
 
 X.RibCntNeedCarbon = 41;
 assert(mod(X.RibCntNeedCarbon,2)==1 || X.RibCntNeedCarbon == 0,'rib with added carbon beam should be symmetrical btw the fuselage');
@@ -46,10 +45,10 @@ X.beamSquareCarbonTubeSize_mm = 5;
 X.RibThickness_mm = 2;
 
 % the width of laser trace cannot be ignored
-X.beamSlotTraceCompensation_mm = 0.5;
-X.beamEdgeTraceCompensation_mm = 0.8;
-X.RibSlotCompensation_mm = 0.05;
-X.LeadingEdgeBeamThicknessCompensation_mm = 0.2;
+X.TraceCompensation.beamSlot_mm = 0.5;
+X.TraceCompensation.beamEdge_mm = 0.8;
+X.TraceCompensation.RibSlot_mm = 0.05;
+X.TraceCompensation.LeadingEdgeBeam_mm = 0.2;
 
 % four quadrants formed by main beam and rib are supported by 4 pieces of wedge. 
 X.BeamRibSupport_mm = 10;
@@ -307,16 +306,16 @@ for ii = 1:X.OneSideRibCnt
     slotcut_ribs{ii}.ForceBearingBeamRibThickness = [];
     slotcut_ribs{ii}.ForceBearingBeamRibYoffset = [];
 end
-
-[X.BeamRotDegDueToDihedral,OneSideWwingTipRise_mm] = getDihedralRotateDeg(slotcut_ribs);
-fprintf(1,'one side wing tip rises %fmm\n',OneSideWwingTipRise_mm);
-fprintf(1,'beam Btm Edge Dihedral %fDeg\n',X.BeamRotDegDueToDihedral);
+[X.BeamBtmEdgeRotDegDueToDihedral,OneSideWingTipRise_mm] = getDihedralRotateDeg(slotcut_ribs);
+fprintf(1,'due to %2.1fDeg dihedral(dihedral is measured at center line):\n',X.setting.geometry.dihedralDeg);
+fprintf(1,'\tthe center line of one side wing tip rises %2.1fmm at beam\n',OneSideWingTipRise_mm);
+fprintf(1,'\tBeam Bottom Edge Rotate Degree: %3.2fDeg\n',X.BeamBtmEdgeRotDegDueToDihedral);
 
 %%
 X.derived.RibLocInBeam_mm = X.setting.manufacture.RibCoeffsRoot2Tip*(1/sind(X.derived.AngleBtwBeamAndRibDeg))*X.setting.geometry.wingSpan_mm/2;
 
 %% cut slot for force bearing beam
-[slotcut_ribs,ribMirror] = cutRibSlot(slotcut_ribs,X.setting.manufacture.MainBeamWidth_mm-2*X.RibSlotCompensation_mm,X.setting.manufacture.MainBeamXmm,'main beam');
+[slotcut_ribs,ribMirror] = cutRibSlot(slotcut_ribs,X.setting.manufacture.MainBeamWidth_mm-2*X.TraceCompensation.RibSlot_mm,X.setting.manufacture.MainBeamXmm,'main beam');
 fid = fopen(sprintf('ribMirror.scr'),'w');
 fprintf(fid,'pline\n');
 for ii = 1:X.OneSideRibCnt
@@ -335,7 +334,7 @@ for ii = 1:X.OneSideRibCnt
     LeadingEdgeBeamPosDetected = false;
     for xposition = LE_x:0.001:LE_x+30
         [Thickness_mm,~,~] = getThickness(slotcut_ribs{ii},xposition);
-        if Thickness_mm > X.setting.manufacture.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm
+        if Thickness_mm > X.setting.manufacture.LeadingEdgeBeamThickness_mm - 2*X.TraceCompensation.LeadingEdgeBeam_mm
             LeadingEdgeBeamPosDetected = true;
             break;
         end
@@ -452,7 +451,7 @@ for iiBeam = 1:X.ForceBearingBeamCnt
     BeamShape{iiBeam}.btm.y = interp1(X.derived.RibLocInBeam_mm,Yoffset,fineRibLocationXmm,X.curvefitmethod)';
     BeamShape{iiBeam}.btm.PointType = ones(length(fineRibLocationXmm),1)*X.PointType.fundamental;
     
-    BeamDihedralApplied{iiBeam} = ApplyBeamDihedral(BeamShape{iiBeam},-X.BeamRotDegDueToDihedral);
+    BeamDihedralApplied{iiBeam} = ApplyBeamDihedral(BeamShape{iiBeam},-X.BeamBtmEdgeRotDegDueToDihedral);
 
     BeamShapeCutRibSlot = BeamDihedralApplied;
     for CutSlotForRib_ii = 1:X.OneSideRibCnt
@@ -464,17 +463,17 @@ for iiBeam = 1:X.ForceBearingBeamCnt
             otherwise
                StyleCutRibSlot = 'MiddleRib';
         end
-        BeamShapeCutRibSlot{iiBeam}.top = cutBeamSlot(BeamShapeCutRibSlot{iiBeam}.top,CutDepthVec(CutSlotForRib_ii),X.RibThickness_mm-2*X.beamSlotTraceCompensation_mm,X.derived.RibLocInBeam_mm(CutSlotForRib_ii),StyleCutRibSlot);
+        BeamShapeCutRibSlot{iiBeam}.top = cutBeamSlot(BeamShapeCutRibSlot{iiBeam}.top,CutDepthVec(CutSlotForRib_ii),X.RibThickness_mm-2*X.TraceCompensation.beamSlot_mm,X.derived.RibLocInBeam_mm(CutSlotForRib_ii),StyleCutRibSlot);
     end
     BeamShapeCutRibSlot{iiBeam}.btm = matchCurveSpan(BeamDihedralApplied{iiBeam}.btm,BeamShapeCutRibSlot{iiBeam}.top);
     draw_beam(BeamShapeCutRibSlot{iiBeam},sprintf('front view Beam%d',iiBeam));
     
-    BeamAlignedForStrength{iiBeam} = AlignBeamForStrength(BeamShapeCutRibSlot{iiBeam},-X.BeamRotDegDueToDihedral);
+    BeamAlignedForStrength{iiBeam} = AlignBeamForStrength(BeamShapeCutRibSlot{iiBeam},-X.BeamBtmEdgeRotDegDueToDihedral);
     draw_beam(BeamAlignedForStrength{iiBeam},sprintf('Aligned Beam%d',iiBeam));
 
     BeamLaserTraceCompensated{iiBeam} = BeamAlignedForStrength{iiBeam};
-    BeamLaserTraceCompensated{iiBeam}.top.y = BeamLaserTraceCompensated{iiBeam}.top.y + X.beamEdgeTraceCompensation_mm;
-    BeamLaserTraceCompensated{iiBeam}.btm.y = BeamLaserTraceCompensated{iiBeam}.btm.y - X.beamEdgeTraceCompensation_mm;
+    BeamLaserTraceCompensated{iiBeam}.top.y = BeamLaserTraceCompensated{iiBeam}.top.y + X.TraceCompensation.beamEdge_mm;
+    BeamLaserTraceCompensated{iiBeam}.btm.y = BeamLaserTraceCompensated{iiBeam}.btm.y - X.TraceCompensation.beamEdge_mm;
     draw_beam(BeamLaserTraceCompensated{iiBeam},sprintf('LaserTrace Compensated Beam%d',iiBeam));
     
     fid = fopen(sprintf('beam_%d.scr',iiBeam),'w');
@@ -609,12 +608,12 @@ ylabel('mm');
 title(titlestr);
 end
 
-function [RotDeg,OneSideWwingTipRise_mm] = getDihedralRotateDeg(ribs)
+function [BeamBtmEdgeRotDegDueToDihedral,OneSideWingTipRise_mm] = getDihedralRotateDeg(ribs)
 global X;
 [RootThickness_mm,~,~] = getThickness(ribs{1},0);
 [TipThickness_mm,~,~] = getThickness(ribs{X.OneSideRibCnt},0);
-OneSideWwingTipRise_mm = ((X.setting.geometry.wingSpan_mm/2)*tand(X.setting.geometry.dihedralDeg)+(RootThickness_mm-TipThickness_mm)/2);
-RotDeg = atand(OneSideWwingTipRise_mm/(X.setting.geometry.wingSpan_mm/2)); 
+OneSideWingTipRise_mm = ((X.setting.geometry.wingSpan_mm/2)*tand(X.setting.geometry.dihedralDeg)+(RootThickness_mm-TipThickness_mm)/2);
+BeamBtmEdgeRotDegDueToDihedral = atand(OneSideWingTipRise_mm/(X.setting.geometry.wingSpan_mm/2)); 
 end
 
 function CalcObtuseAngleBtwBeamAndRibDeg(ribs_top_x)
@@ -631,7 +630,7 @@ LE_DeltaX = tan(X.setting.geometry.LE_sweepbackDeg*pi/180)*X.setting.geometry.wi
 beam_DeltaX = LE_DeltaX + tip_LE_x - root_LE_x;
 X.derived.AngleBtwBeamAndRibDeg = atan(beam_DeltaX/(X.setting.geometry.wingSpan_mm/2))*180/pi+90;
 X.derived.AngleBtwTEandRibDeg = atan((LE_DeltaX+X.setting.geometry.wingtipCord_mm-X.setting.geometry.rootCord_mm)/(X.setting.geometry.wingSpan_mm/2))*180/pi+90;
-fprintf(1,'Given Leading edge sweep back angle = %2.1fdeg, the obtuse angle btw Beam & Rib = %2.1fdeg, btw Trailing edge & Rib = %2.1fdeg\n',...
+fprintf(1,'Given Leading edge sweep back angle = %2.1fdeg,the obtuse angle btw\n\tBeam & Rib = %2.1fdeg\n\tbtw Trailing edge & Rib = %2.1fdeg\n',...
     X.setting.geometry.LE_sweepbackDeg,...
     X.derived.AngleBtwBeamAndRibDeg,...
     X.derived.AngleBtwTEandRibDeg);
@@ -684,12 +683,12 @@ end
 function newcurve = cutLeadingEdgeSlot(curve,edgetype,Thickness_mm)
 global X;
 newcurve = [];
-assert( Thickness_mm > X.setting.manufacture.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm);
+assert( Thickness_mm > X.setting.manufacture.LeadingEdgeBeamThickness_mm - 2*X.TraceCompensation.LeadingEdgeBeam_mm);
 
 LE_x = curve.x(1);
 LE_y = curve.y(1);
 
-yshift = ( Thickness_mm - (X.setting.manufacture.LeadingEdgeBeamThickness_mm - 2*X.LeadingEdgeBeamThicknessCompensation_mm))/2;
+yshift = ( Thickness_mm - (X.setting.manufacture.LeadingEdgeBeamThickness_mm - 2*X.TraceCompensation.LeadingEdgeBeam_mm))/2;
 
 switch edgetype
     case 'top'

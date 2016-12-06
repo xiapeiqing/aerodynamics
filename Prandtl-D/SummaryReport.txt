@@ -1,0 +1,10 @@
+﻿aileron
+	Y axis length=252.9mm 机翼垂直于机身中轴方向测量的副翼长度
+	aileron inner width=21.4mm 副翼在内侧的宽度
+	aileron outer width=11.4mm 副翼在外侧的宽度
+Given Leading edge sweep back angle = 24.0deg,the obtuse angle btw 前缘测量的后掠角
+	Beam & Rib = 111.6deg 翼梁和翼肋的夹角
+	btw Trailing edge & Rib = 105.9deg 后缘和翼肋的夹角
+due to 0.0Deg dihedral(dihedral is measured at center line): 用户给定上反角
+	the center line of one side wing tip rises 8.7mm at beam 在翼梁位置，翼尖的翼肋上下缘的中点相对翼根处翼肋在翼梁位置的下边缘位置抬高
+	Beam Bottom Edge Rotate Degree: 0.59Deg 翼梁的下边抬高
