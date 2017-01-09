@@ -1,8 +1,7 @@
-function draw_airfoil()
+function draw_airfoil(scalingfactor,LE_sweepbackDeg,dihedralDeg,ribCnt,RibCntNeedCarbon)
 % save airfoil centerlinex centerliney wingtipx wingtipy twistx twisty
 close all;
 load airfoil centerlinex centerliney wingtipx wingtipy twistx twisty;
-scalingfactor = 0.45;
 NASA_wingSpan_mm = 3750;
 NASA_centerCord_mm = 400;
 NASA_tipcord_mm = 100;
@@ -13,9 +12,9 @@ NASA_aileron_outerwidth_mm = 1*25.4;
 %%
 global X;
 X = [];
-X.setting.geometry.LE_sweepbackDeg = 24;
+X.setting.geometry.LE_sweepbackDeg = LE_sweepbackDeg;
 % Dihedral is an angle raising the centerline of the wing tip above the centerline of the wing root.
-X.setting.geometry.dihedralDeg = 0;
+X.setting.geometry.dihedralDeg = dihedralDeg;
 X.setting.geometry.wingSpan_mm = NASA_wingSpan_mm*scalingfactor;
 X.setting.geometry.rootCord_mm = NASA_centerCord_mm*scalingfactor;
 X.setting.geometry.wingtipCord_mm = NASA_tipcord_mm*scalingfactor;
@@ -25,7 +24,7 @@ X.setting.aileron.outerwidth_mm = NASA_aileron_outerwidth_mm*scalingfactor;
 fprintf(1,'Summary Report\n');
 fprintf(1,'aileron\n\tY axis length=%2.1fmm\n\taileron inner width=%2.1fmm\n\taileron outer width=%2.1fmm\n',X.setting.aileron.yAxislength_mm,X.setting.aileron.innerwidth_mm,X.setting.aileron.outerwidth_mm);
 
-X.setting.manufacture.ribCnt = 61;
+X.setting.manufacture.ribCnt = ribCnt;
 X.setting.manufacture.LeadingEdgeBeamThickness_mm = 2; % square edge size 
 X.setting.manufacture.LeadingEdgeBeamWidth_mm = 6; % square edge size 
 X.setting.manufacture.trailingEdgeWidth_mm = 10;
@@ -37,7 +36,7 @@ X.setting.manufacture.MainBeamWidth_mm = 6;
 X.setting.manufacture.MainBeamXmm = 0;
 assert(X.setting.manufacture.MainBeamXmm == 0); % we want the beam deployed at rotation center to have flat btm edge 
 
-X.RibCntNeedCarbon = 41;
+X.RibCntNeedCarbon = RibCntNeedCarbon;
 assert(mod(X.RibCntNeedCarbon,2)==1 || X.RibCntNeedCarbon == 0,'rib with added carbon beam should be symmetrical btw the fuselage');
 % we may want to add a square carbon tube to strengthen the beam
 X.beamSquareCarbonTubeSize_mm = 5;
