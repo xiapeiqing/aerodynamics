@@ -2,6 +2,7 @@ function draw_airfoil(scalingfactor,LE_sweepbackDeg,dihedralDeg,ribCnt,RibCntNee
 % save airfoil centerlinex centerliney wingtipx wingtipy twistx twisty
 close all;
 load airfoil centerlinex centerliney wingtipx wingtipy twistx twisty;
+
 NASA_wingSpan_mm = 3750;
 NASA_centerCord_mm = 400;
 NASA_tipcord_mm = 100;
@@ -71,6 +72,7 @@ Len_fineX = length(fineX);
 X.OneSideRibCnt = (X.setting.manufacture.ribCnt+1)/2;
 aileronLocation = (X.setting.geometry.wingSpan_mm/2-X.setting.aileron.yAxislength_mm)/(X.setting.geometry.wingSpan_mm/2);
 ribLocation = (0:X.OneSideRibCnt-1)/(X.OneSideRibCnt-1);
+
 figure;
 plot(ribLocation,zeros(1,length(ribLocation)),'o');
 hold on;
@@ -91,6 +93,9 @@ switch ButtonName
 end
 X.OneSideRibCnt = length(X.setting.manufacture.RibCoeffsRoot2Tip);
 %%
+saveAirfoilProfile2file(centerlinex, centerliney, wingtipx, wingtipy);
+
+%%
 centerlinex = centerlinex(:);
 centerliney = centerliney(:);
 [centerlinex,centerliney] = normalizexy(centerlinex,centerliney);
@@ -107,13 +112,9 @@ ylabel('unit');
 %%
 figure;
 hold on;
-end_of_center_top_curve = (length(centerlinex)+1)/2;
-top_centerline_x = centerlinex(1:end_of_center_top_curve);
-top_centerline_y = centerliney(1:end_of_center_top_curve);
+[top_centerline_x,top_centerline_y,btm_centerline_x,btm_centerline_y] = airfoilProfile2twoPieces(centerlinex,centerliney);
 top_centerline_fine_y = interp1(top_centerline_x,top_centerline_y,fineX,X.curvefitmethod);
 plot(fineX,top_centerline_fine_y,'.');
-btm_centerline_x = centerlinex(end_of_center_top_curve:end);
-btm_centerline_y = centerliney(end_of_center_top_curve:end);
 btm_centerline_fine_y = interp1(btm_centerline_x,btm_centerline_y,fineX,X.curvefitmethod);
 plot(fineX,btm_centerline_fine_y,'.');
 axis equal;
@@ -121,16 +122,13 @@ legend('top','btm');
 title('centerline');grid on;
 xlabel('unit');
 ylabel('unit');
+
 %%
 figure;
 hold on;
-end_of_wingtip_top_curve = (length(wingtipx)+1)/2;
-top_wingtip_x = wingtipx(1:end_of_wingtip_top_curve);
-top_wingtip_y = wingtipy(1:end_of_wingtip_top_curve);
+[top_wingtip_x,top_wingtip_y,btm_wingtip_x,btm_wingtip_y] = airfoilProfile2twoPieces(wingtipx,wingtipy);
 top_wingtip_mid_y = interp1(top_wingtip_x,top_wingtip_y,fineX,X.curvefitmethod);
 plot(fineX,top_wingtip_mid_y,'.');
-btm_wingtip_x = wingtipx(end_of_wingtip_top_curve:end);
-btm_wingtip_y = wingtipy(end_of_wingtip_top_curve:end);
 btm_wingtip_mid_y = interp1(btm_wingtip_x,btm_wingtip_y,fineX,X.curvefitmethod);
 plot(fineX,btm_wingtip_mid_y,'.');
 axis equal;
@@ -154,6 +152,7 @@ title('Ribs:same length');
 grid on;
 xlabel('unit');
 ylabel('unit');
+
 %%
 xindexRotate = find(fineX==X.rotateFromLE);
 assert(length(xindexRotate)==1);
@@ -181,7 +180,7 @@ ylabel('deg');
 grid on;
 xlabel('half wingspan');
 %%
-twist_ribs = interp1(twistx/twistx(end),twisty,X.setting.manufacture.RibCoeffsRoot2Tip,X.curvefitmethod);
+twist_ribsDeg = interp1(twistx/twistx(end),twisty,X.setting.manufacture.RibCoeffsRoot2Tip,X.curvefitmethod);
 
 rotated_ribs_top_x = zeros(Len_fineX,X.OneSideRibCnt);
 rotated_ribs_top_y = zeros(Len_fineX,X.OneSideRibCnt);
@@ -191,7 +190,7 @@ figure;
 axis equal;
 hold on;
 for ii = 1:X.OneSideRibCnt
-    thetaDeg = twist_ribs(ii);
+    thetaDeg = twist_ribsDeg(ii);
     R = [cosd(thetaDeg) -sind(thetaDeg); sind(thetaDeg) cosd(thetaDeg)];
     top_beforeRotate = [centered_interpolatedX centered_top_mid_ribs(:,ii)];
     top_afterRotate = top_beforeRotate*R;
@@ -212,16 +211,16 @@ scaled_ribs_top_x = rotated_ribs_top_x;
 scaled_ribs_top_y = rotated_ribs_top_y;
 scaled_ribs_btm_x = rotated_ribs_btm_x;
 scaled_ribs_btm_y = rotated_ribs_btm_y;
-scale_ribs = interp1([0 1],[X.setting.geometry.rootCord_mm X.setting.geometry.wingtipCord_mm],X.setting.manufacture.RibCoeffsRoot2Tip,'linear');
+ribs_lengthmm = interp1([0 1],[X.setting.geometry.rootCord_mm X.setting.geometry.wingtipCord_mm],X.setting.manufacture.RibCoeffsRoot2Tip,'linear');
 
 figure;
 axis equal;
 hold on;
 for ii = 1:X.OneSideRibCnt
-    scaled_ribs_top_x(:,ii) = scaled_ribs_top_x(:,ii) * scale_ribs(ii);
-    scaled_ribs_top_y(:,ii) = scaled_ribs_top_y(:,ii) * scale_ribs(ii);
-    scaled_ribs_btm_x(:,ii) = scaled_ribs_btm_x(:,ii) * scale_ribs(ii);
-    scaled_ribs_btm_y(:,ii) = scaled_ribs_btm_y(:,ii) * scale_ribs(ii);
+    scaled_ribs_top_x(:,ii) = scaled_ribs_top_x(:,ii) * ribs_lengthmm(ii);
+    scaled_ribs_top_y(:,ii) = scaled_ribs_top_y(:,ii) * ribs_lengthmm(ii);
+    scaled_ribs_btm_x(:,ii) = scaled_ribs_btm_x(:,ii) * ribs_lengthmm(ii);
+    scaled_ribs_btm_y(:,ii) = scaled_ribs_btm_y(:,ii) * ribs_lengthmm(ii);
     plot([scaled_ribs_top_x(:,ii); scaled_ribs_btm_x(:,ii)],[scaled_ribs_top_y(:,ii); scaled_ribs_btm_y(:,ii)],'.');
 end
 title('Ribs:shifted,rotated,scaled');
@@ -374,8 +373,8 @@ figure;
 axis equal;
 hold on;
 for ii = 1:X.OneSideRibCnt
-    rib_aligned{ii}.top = rotateXY(cut_trailingedge{ii}.top,-twist_ribs(ii));
-    rib_aligned{ii}.btm = rotateXY(cut_trailingedge{ii}.btm,-twist_ribs(ii));
+    rib_aligned{ii}.top = rotateXY(cut_trailingedge{ii}.top,-twist_ribsDeg(ii));
+    rib_aligned{ii}.btm = rotateXY(cut_trailingedge{ii}.btm,-twist_ribsDeg(ii));
     plot([rib_aligned{ii}.top.x; rib_aligned{ii}.btm.x],[rib_aligned{ii}.top.y; rib_aligned{ii}.btm.y],'.');
 end
 title('Ribs:shifted,rotated,scaled,LEcut,TEcut,Aligned');
@@ -481,6 +480,9 @@ for iiBeam = 1:X.ForceBearingBeamCnt
     fclose(fid);
     
 end
+
+printXFLR5info(ribs_lengthmm,twist_ribsDeg);
+
 end
 
 function newCurve = matchCurveSpan(Curve,RefCurve)
@@ -668,16 +670,49 @@ end
 fprintf(fid,'%f,%f\n',xx(1)+xoffset,yy(1)+yoffset);
 end
 
-% function save_finalResults(idx, xx, yy)
-% fid = fopen(sprintf('airfoil%d.scr',idx),'w');
-% fprintf(fid,'pline\n');
-% assert(length(xx)==length(yy));
-% for ii = 1:length(xx)
-%     fprintf(fid,'%f,%f\n',xx(ii),yy(ii));
-% end
-% fprintf(fid,'%f,%f\n',xx(1),yy(1));
-% fclose(fid);
-% end,
+function NewAirfoilY = interpolateAirfoil(x,y,newx)
+global X;
+[top_x,top_y,btm_x,btm_y] = airfoilProfile2twoPieces(x,y);
+end_of_top_curve = (length(newx)+1)/2;
+newtopx = newx(1:end_of_top_curve);
+newbtmx = newx(end_of_top_curve:end);
+newtopy = [];
+newbtmy = [];
+for ii = 1:length(newtopx)
+    newtopy(ii) = interp1nearby(top_x,top_y,ones(1,length(top_x))*X.PointType.fundamental,newtopx(ii),2);
+    newbtmy(ii) = interp1nearby(btm_x,btm_y,ones(1,length(btm_x))*X.PointType.fundamental,newbtmx(ii),2);
+end
+[~,NewAirfoilY] = twoPieces2airfoilProfile(newx,newtopy',newx,newbtmy');
+end
+
+function saveAirfoilProfile2file(centerlinex, centerliney, wingtipx, wingtipy)
+global X;
+if length(centerlinex) > length(wingtipx)
+    x_coordinate = centerlinex;
+    centerline_Y = centerliney;
+    wingtip_Y = interpolateAirfoil(wingtipx,wingtipy,x_coordinate);
+else
+    x_coordinate = wingtipx;
+    centerline_Y = interpolateAirfoil(centerlinex, centerliney,x_coordinate);
+    wingtip_Y = wingtipy;
+end
+outputfolder = [pwd '\output\'];
+if ~exist(outputfolder,'dir')
+    mkdir(outputfolder);
+end
+for ribii = 1:length(X.setting.manufacture.RibCoeffsRoot2Tip)
+    result = interpolate2Airfoil(centerline_Y, wingtip_Y, X.setting.manufacture.RibCoeffsRoot2Tip(ribii));
+    datafilename = sprintf('%sPrandtlRib%d.dat',outputfolder,ribii);
+    %assert(~exist(datafilename,'file'));
+    fid = fopen(datafilename,'w');
+    fprintf(fid,'PrandtlRib%d airfoil\r\n',ribii);
+    
+    for pointii = 1:length(x_coordinate)
+        fprintf(fid, '%10.9f %10.9f\r\n',x_coordinate(pointii),result(pointii));
+    end
+    fclose(fid);
+end
+end
 
 function newcurve = cutLeadingEdgeSlot(curve,edgetype,Thickness_mm)
 global X;
@@ -804,7 +839,20 @@ if ii+nearbyCnt <= length(basic_x)
 else
     rightii = length(basic_x); 
 end
-val = interp1(basic_x(leftii:rightii),basic_y(leftii:rightii),newx,type);
+neighbourX = basic_x(leftii:rightii);
+neighbourY = basic_y(leftii:rightii);
+
+% if length(unique(sign(diff(neighbourX)))) > 1
+%     % neighbourX not monotonically increasing/decreasing
+%     [~,closestII] = min(abs(neighbourX));
+%     assert(closestII ~= 1 && closestII ~= length(neighbourX));
+%     if closestII > length(neighbourX)/2
+%         neighbourX = neighbourX(1:closestII);
+%         neighbourY = neighbourY(1:closestII);
+%     else
+%     end
+% end
+val = interp1(neighbourX,neighbourY,newx,type);
 end
 
 function [thickness,top_mm, btm_mm] = getThickness(rib,x)
@@ -953,5 +1001,29 @@ num = length(tip1Y);
 result = zeros(num,length(coeff0to1));
 for ii = 1:length(tip1Y)
     result(ii,:) =  interp1([0 1],[center0Y(ii) tip1Y(ii)],coeff0to1,'linear');
+end
+end
+
+function [top_x,top_y,btm_x,btm_y] = airfoilProfile2twoPieces(x,y)
+end_of_center_top_curve = (length(x)+1)/2;
+top_x = x(1:end_of_center_top_curve);
+top_y = y(1:end_of_center_top_curve);
+btm_x = x(end_of_center_top_curve:end);
+btm_y = y(end_of_center_top_curve:end);
+end
+
+function [x,y] = twoPieces2airfoilProfile(top_x,top_y,btm_x,btm_y)
+x = [top_x; btm_x(2:end)];
+y = [top_y; btm_y(2:end)];
+end
+
+function printXFLR5info(ribs_lengthmm,twist_ribsDeg)
+global X;
+Ylocation_mm = X.setting.geometry.wingSpan_mm/2*(0:X.OneSideRibCnt-1)/(X.OneSideRibCnt-1); 
+LEoffset = X.setting.geometry.wingSpan_mm/2*tand(X.setting.geometry.LE_sweepbackDeg)*(0:X.OneSideRibCnt-1)/(X.OneSideRibCnt-1); 
+fprintf(1,'index Y(mm) cordlength(mm) leadingEdgeOffset(mm) Twist(Deg)\n');
+for ii = 1:length(ribs_lengthmm)
+    fprintf(1,'%3d %10.3f %10.3f %10.3f %10.2f\n',ii,Ylocation_mm(ii),ribs_lengthmm(ii),LEoffset(ii),twist_ribsDeg(ii));
+    fprintf(1,'----------------------------------------------------------\n');
 end
 end
