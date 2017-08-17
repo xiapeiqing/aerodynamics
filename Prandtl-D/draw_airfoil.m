@@ -41,8 +41,9 @@ switch structcfg.buildingmethod
 end
 
 % support structure height, not part of the plane, only used in construction process as the base support structure for each rib 
-X.setting.manufacture.RibTopSupportStructureHeight_mm = 50;
-X.setting.manufacture.RibBtmSupportStructureHeight_mm = 35;
+X.setting.manufacture.RibTopSupportStructureHeight_mm = 150;
+X.setting.manufacture.RibBtmSupportStructureHeight_mm = 50;
+X.setting.shiftY_mm = 200;
 
 switch structcfg.buildingmethod
     case 'CarbonTubeSpar'
@@ -245,32 +246,32 @@ xlabel('mm');
 ylabel('mm');
 
 %% shift in y-axis to align the bottom edge of main beam. diherdral is based on the chord line, which is the middle line btw upper/lower edges 
-btmaligned_ribs_top_x = scaled_ribs_top_x;
-btmaligned_ribs_top_y = scaled_ribs_top_y;
-btmaligned_ribs_btm_x = scaled_ribs_btm_x;
-btmaligned_ribs_btm_y = scaled_ribs_btm_y;
-
-figure;
-axis equal;
-hold on;
-X.sparCenter = [];
-X.sparCenter.x = [];
-X.sparCenter.y = [];
-for ii = 1:X.OneSideRibCnt
-    X.sparCenter.x(ii) = 0;
-    bottomYatZeroX = interp1(btmaligned_ribs_btm_x(:,ii),btmaligned_ribs_btm_y(:,ii),0,X.curvefitmethod);
-    X.sparCenter.y(ii) = bottomYatZeroX;
-    btmaligned_ribs_top_y(:,ii) = btmaligned_ribs_top_y(:,ii) - bottomYatZeroX;
-    btmaligned_ribs_btm_y(:,ii) = btmaligned_ribs_btm_y(:,ii) - bottomYatZeroX;
-    plot([btmaligned_ribs_top_x(:,ii); btmaligned_ribs_btm_x(:,ii)],[btmaligned_ribs_top_y(:,ii); btmaligned_ribs_btm_y(:,ii)],'.');
-end
-title('Ribs:btmEdgeAlign,X-shifted,rotated,scaled');
-grid on;
-xlabel('mm');
-ylabel('mm');
+% btmaligned_ribs_top_x = scaled_ribs_top_x;
+% btmaligned_ribs_top_y = scaled_ribs_top_y;
+% btmaligned_ribs_btm_x = scaled_ribs_btm_x;
+% btmaligned_ribs_btm_y = scaled_ribs_btm_y;
+% 
+% figure;
+% axis equal;
+% hold on;
+% X.sparCenter = [];
+% X.sparCenter.x = [];
+% X.sparCenter.y = [];
+% for ii = 1:X.OneSideRibCnt
+%     X.sparCenter.x(ii) = 0;
+%     bottomYatZeroX = interp1(btmaligned_ribs_btm_x(:,ii),btmaligned_ribs_btm_y(:,ii),0,X.curvefitmethod);
+%     X.sparCenter.y(ii) = bottomYatZeroX;
+%     btmaligned_ribs_top_y(:,ii) = btmaligned_ribs_top_y(:,ii) - bottomYatZeroX;
+%     btmaligned_ribs_btm_y(:,ii) = btmaligned_ribs_btm_y(:,ii) - bottomYatZeroX;
+%     plot([btmaligned_ribs_top_x(:,ii); btmaligned_ribs_btm_x(:,ii)],[btmaligned_ribs_top_y(:,ii); btmaligned_ribs_btm_y(:,ii)],'.');
+% end
+% title('Ribs:btmEdgeAlign,X-shifted,rotated,scaled');
+% grid on;
+% xlabel('mm');
+% ylabel('mm');
 
 %% compute top view angle between beam and ribs, produce CAD file for the 4 wedges 
-CalcObtuseAngleBtwBeamAndRibDeg(btmaligned_ribs_top_x);
+CalcObtuseAngleBtwBeamAndRibDeg(scaled_ribs_top_x);
 space = 10;
 fid = fopen('WedgeSupportSparAndAirfoil.scr','w');
 fprintf(fid,'pline\n');
@@ -314,12 +315,12 @@ grid on;
 % use cell to store
 slotcut_ribs = cell(1,X.OneSideRibCnt);
 for ii = 1:X.OneSideRibCnt
-    slotcut_ribs{ii}.top.x = btmaligned_ribs_top_x(:,ii);
-    slotcut_ribs{ii}.top.y = btmaligned_ribs_top_y(:,ii);
-    slotcut_ribs{ii}.top.PointType = ones(length(btmaligned_ribs_top_x(:,ii)),1)*X.PointType.fundamental;
-    slotcut_ribs{ii}.btm.x = btmaligned_ribs_btm_x(:,ii);
-    slotcut_ribs{ii}.btm.y = btmaligned_ribs_btm_y(:,ii);
-    slotcut_ribs{ii}.btm.PointType = ones(length(btmaligned_ribs_btm_x(:,ii)),1)*X.PointType.fundamental;
+    slotcut_ribs{ii}.top.x = scaled_ribs_top_x(:,ii);
+    slotcut_ribs{ii}.top.y = scaled_ribs_top_y(:,ii);
+    slotcut_ribs{ii}.top.PointType = ones(length(scaled_ribs_top_x(:,ii)),1)*X.PointType.fundamental;
+    slotcut_ribs{ii}.btm.x = scaled_ribs_btm_x(:,ii);
+    slotcut_ribs{ii}.btm.y = scaled_ribs_btm_y(:,ii);
+    slotcut_ribs{ii}.btm.PointType = ones(length(scaled_ribs_btm_x(:,ii)),1)*X.PointType.fundamental;
     slotcut_ribs{ii}.ForceBearingBeamCutDepth = [];
     slotcut_ribs{ii}.ForceBearingBeamRibThickness = [];
     slotcut_ribs{ii}.ForceBearingBeamRibYoffset = [];
@@ -330,7 +331,8 @@ fprintf(1,'due to %2.1fDeg dihedral(dihedral is measured at center line):\n',X.s
 fprintf(1,'\tthe center line of one side wing tip rises %2.1fmm at beam\n',OneSideWingTipRise_mm);
 fprintf(1,'\tBeam Bottom Edge Rotate Degree: %3.2fDeg\n',X.BeamBtmEdgeRotDegDueToDihedral);
 %% due to the sweep back angle, airfoil seperation in spar is longer than that in lateral direction 
-X.derived.RibLocInBeam_mm = X.setting.manufacture.RibCoeffsRoot2Tip0to1*(1/sind(X.derived.AngleBtwBeamAndRibDeg))*X.setting.geometry.wingSpan_mm/2;
+X.derived.RibLocInWingspan_mm = X.setting.manufacture.RibCoeffsRoot2Tip0to1*X.setting.geometry.wingSpan_mm/2;
+X.derived.RibLocInBeam_mm = X.derived.RibLocInWingspan_mm*(1/sind(X.derived.AngleBtwBeamAndRibDeg));
 %% cut slot in airfoil for spar
 switch structcfg.buildingmethod
     case 'CarbonTubeSpar'
@@ -346,10 +348,10 @@ fprintf(fid,'pline\n');
 for ii = 1:X.OneSideRibCnt
 switch structcfg.buildingmethod
     case 'CarbonTubeSpar'
-        saveTopBtmCell2scrFile(fid,topRibMirror{ii},0,  ii*100);
-        saveTopBtmCell2scrFile(fid,btmRibMirror{ii},X.setting.geometry.rootCord_mm+100,ii*100);
+        saveTopBtmCell2scrFile(fid,topRibMirror{ii},0,  ii*X.setting.shiftY_mm);
+        saveTopBtmCell2scrFile(fid,btmRibMirror{ii},X.setting.geometry.rootCord_mm+X.setting.shiftY_mm,ii*X.setting.shiftY_mm);
     case 'woodspar+2carbonRod'
-        saveTopBtmCell2scrFile(fid,ribMirror{ii},0,ii*100);
+        saveTopBtmCell2scrFile(fid,ribMirror{ii},0,ii*X.setting.shiftY_mm);
     otherwise
         assert(false);
 end
@@ -428,20 +430,19 @@ end
 
 fid = fopen('airfoil_all.scr','w');
 fprintf(fid,'pline\n');
-X.derived.RibSweepBackAlongRib_mm = X.setting.manufacture.RibCoeffsRoot2Tip0to1*X.setting.geometry.wingSpan_mm/2/abs(tand(X.derived.AngleBtwBeamAndRibDeg));
-X.derived.RibSweepBackAlongBeam_mm = X.setting.manufacture.RibCoeffsRoot2Tip0to1*X.setting.geometry.wingSpan_mm/2;
+X.derived.RibLocationLateral_mm = X.setting.manufacture.RibCoeffsRoot2Tip0to1*X.setting.geometry.wingSpan_mm/2;
+X.derived.RibSweepBackAlongRib_mm = X.derived.RibLocationLateral_mm/abs(tand(X.derived.AngleBtwBeamAndRibDeg));
 for ii = 1:X.OneSideRibCnt
     xoffset = X.derived.RibSweepBackAlongRib_mm(ii);
-    yoffset = X.derived.RibSweepBackAlongBeam_mm(ii);
+    yoffset = X.derived.RibLocationLateral_mm(ii);
     saveTopBtmCell2scrFile(fid,LaserCutRib{ii},xoffset,yoffset);
 end
-for ii = 1:length(X.sparCenter.x)
-    sparcenterX = X.sparCenter.x(ii)+X.derived.RibSweepBackAlongRib_mm(ii);
-    sparcenterY = -X.sparCenter.y(ii)+X.derived.RibSweepBackAlongBeam_mm(ii);
-    fprintf(fid,'%7.6f,%7.6f\n',sparcenterX-10,sparcenterY-10);
-    fprintf(fid,'%7.6f,%7.6f\n',sparcenterX+10,sparcenterY+10);
-    fprintf(fid,'%7.6f,%7.6f\n',sparcenterX+10,sparcenterY-10);
-    fprintf(fid,'%7.6f,%7.6f\n',sparcenterX-10,sparcenterY+10);
+for ii = 1:X.OneSideRibCnt
+    sparcenterX = X.derived.RibSweepBackAlongRib_mm(ii);
+    sparcenterY = X.derived.RibLocationLateral_mm(ii);
+    draw_x(fid,sparcenterX,sparcenterY);
+    draw_xh(fid,60, sparcenterY+tand(X.setting.geometry.dihedralDeg)*sparcenterY+2);
+    draw_xv(fid,120,sparcenterY-tand(X.setting.geometry.dihedralDeg)*sparcenterY-10);
 end
 
 fclose(fid);
@@ -846,15 +847,16 @@ btmRibMirror = cell(1,X.OneSideRibCnt);
 
 for ii = 1:X.OneSideRibCnt
     topRibMirror{ii} = ribs{ii};
+    thisDihedralHeight_mm = X.derived.RibLocInWingspan_mm(ii)*tand(X.setting.geometry.dihedralDeg);
     flatedge = [];
     flatedge.x = [min(ribs{ii}.top.x);max(ribs{ii}.top.x)];
-    flatedge.y = ones(2,1)*X.setting.manufacture.RibTopSupportStructureHeight_mm;
+    flatedge.y = ones(2,1)*(X.setting.manufacture.RibTopSupportStructureHeight_mm-thisDihedralHeight_mm);
     flatedge.PointType = ones(2,1)*X.PointType.fundamental;
     topRibMirror{ii}.btm = flatedge;
     btmRibMirror{ii} = ribs{ii};
     flatedge = [];
     flatedge.x = [min(ribs{ii}.top.x);max(ribs{ii}.top.x)];
-    flatedge.y = -ones(2,1)*X.setting.manufacture.RibBtmSupportStructureHeight_mm;
+    flatedge.y = -ones(2,1)*(X.setting.manufacture.RibBtmSupportStructureHeight_mm+thisDihedralHeight_mm);
     flatedge.PointType = ones(2,1)*X.PointType.fundamental;
     btmRibMirror{ii}.top = flatedge;
 end
@@ -1126,4 +1128,31 @@ for ii = 1:length(X.ribs_lengthmm)
     fprintf(1,'--------------------------------------------------------------------------------------\n');
 end
 end
+
+function draw_x(fid,sparcenterX,sparcenterY)
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX-10,sparcenterY-10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX+10,sparcenterY+10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX+10,sparcenterY-10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX-10,sparcenterY+10);
+end
+
+function draw_xv(fid,sparcenterX,sparcenterY)
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX-10,sparcenterY-10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX+10,sparcenterY+10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX+10,sparcenterY-10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX-10,sparcenterY+10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX   ,sparcenterY+10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX   ,sparcenterY-10);
+end
+
+function draw_xh(fid,sparcenterX,sparcenterY)
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX-10,sparcenterY-10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX+10,sparcenterY+10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX+10,sparcenterY-10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX-10,sparcenterY+10);
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX-10,sparcenterY   );
+fprintf(fid,'%7.6f,%7.6f\n',sparcenterX+10,sparcenterY   );
+end
+
+
 

@@ -37,7 +37,6 @@ switch aircraft
         structcfg.buildingmethod = 'CarbonTubeSpar';
         structcfg.ribCnt=61;
         structcfg.RibCntCarbonSupportedSpar=41;
-        
 end
 usrctrl = [];
 usrctrl.sanityTest = true;
