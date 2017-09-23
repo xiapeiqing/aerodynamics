@@ -1,4 +1,4 @@
-aircraft = '3mCarbonTubeSpar';
+aircraft = '8mCarbonTubeSpar';
 geometry = [];
 structcfg = [];
 switch aircraft
@@ -37,6 +37,13 @@ switch aircraft
         structcfg.buildingmethod = 'CarbonTubeSpar';
         structcfg.ribCnt=61;
         structcfg.RibCntCarbonSupportedSpar=41;
+    case '8mCarbonTubeSpar'
+        geometry.scalingfactor=8e3/3750;
+        geometry.LE_sweepbackDeg=24;
+        geometry.dihedralDeg=0;
+        structcfg.buildingmethod = 'CarbonTubeSpar';
+        structcfg.ribCnt=161;
+        structcfg.RibCntCarbonSupportedSpar=121;
 end
 usrctrl = [];
 usrctrl.sanityTest = true;

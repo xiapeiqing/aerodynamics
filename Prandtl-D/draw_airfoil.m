@@ -41,9 +41,9 @@ switch structcfg.buildingmethod
 end
 
 % support structure height, not part of the plane, only used in construction process as the base support structure for each rib 
-X.setting.manufacture.RibTopSupportStructureHeight_mm = 150;
-X.setting.manufacture.RibBtmSupportStructureHeight_mm = 50;
-X.setting.shiftY_mm = 200;
+X.setting.manufacture.RibTopSupportStructureHeight_mm = 200;
+X.setting.manufacture.RibBtmSupportStructureHeight_mm = 200;
+X.setting.shiftY_mm = 350;
 
 switch structcfg.buildingmethod
     case 'CarbonTubeSpar'
@@ -427,25 +427,31 @@ end
 
 
 %% produce rib cut cad file
-
-fid = fopen('airfoil_all.scr','w');
-fprintf(fid,'pline\n');
-X.derived.RibLocationLateral_mm = X.setting.manufacture.RibCoeffsRoot2Tip0to1*X.setting.geometry.wingSpan_mm/2;
-X.derived.RibSweepBackAlongRib_mm = X.derived.RibLocationLateral_mm/abs(tand(X.derived.AngleBtwBeamAndRibDeg));
-for ii = 1:X.OneSideRibCnt
-    xoffset = X.derived.RibSweepBackAlongRib_mm(ii);
-    yoffset = X.derived.RibLocationLateral_mm(ii);
-    saveTopBtmCell2scrFile(fid,LaserCutRib{ii},xoffset,yoffset);
+for airfoil_all_ii = 1:2
+    switch airfoil_all_ii
+        case 1
+            fid = fopen('airfoil_all_ribCut.scr','w'); % the rib thickness may cause overlapped ribs in cad file. This plot is not top view, only used for Rib cutting. 
+            X.derived.RibLocationLateral_mm = 2.5*X.setting.manufacture.RibCoeffsRoot2Tip0to1*X.setting.geometry.wingSpan_mm/2;
+        case 2
+            fid = fopen('airfoil_all.scr','w');
+            X.derived.RibLocationLateral_mm = X.setting.manufacture.RibCoeffsRoot2Tip0to1*X.setting.geometry.wingSpan_mm/2;
+    end
+    fprintf(fid,'pline\n');
+    X.derived.RibSweepBackAlongRib_mm = X.derived.RibLocationLateral_mm/abs(tand(X.derived.AngleBtwBeamAndRibDeg));
+    for ii = 1:X.OneSideRibCnt
+        xoffset = X.derived.RibSweepBackAlongRib_mm(ii);
+        yoffset = X.derived.RibLocationLateral_mm(ii);
+        saveTopBtmCell2scrFile(fid,LaserCutRib{ii},xoffset,yoffset);
+    end
+    for ii = 1:X.OneSideRibCnt
+        sparcenterX = X.derived.RibSweepBackAlongRib_mm(ii);
+        sparcenterY = X.derived.RibLocationLateral_mm(ii);
+        draw_x(fid,sparcenterX,sparcenterY);
+        draw_xh(fid,60, sparcenterY+tand(X.setting.geometry.dihedralDeg)*sparcenterY+2);
+        draw_xv(fid,120,sparcenterY-tand(X.setting.geometry.dihedralDeg)*sparcenterY-10);
+    end
+    fclose(fid);
 end
-for ii = 1:X.OneSideRibCnt
-    sparcenterX = X.derived.RibSweepBackAlongRib_mm(ii);
-    sparcenterY = X.derived.RibLocationLateral_mm(ii);
-    draw_x(fid,sparcenterX,sparcenterY);
-    draw_xh(fid,60, sparcenterY+tand(X.setting.geometry.dihedralDeg)*sparcenterY+2);
-    draw_xv(fid,120,sparcenterY-tand(X.setting.geometry.dihedralDeg)*sparcenterY-10);
-end
-
-fclose(fid);
 switch structcfg.buildingmethod
     case 'CarbonTubeSpar'
         % do nothing
