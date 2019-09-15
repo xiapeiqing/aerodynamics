@@ -23,6 +23,8 @@ All CAD design files and matlab script used to synthesize the CAD file are avail
 <img src="doc/img/surfaceVel.png" width="600">
 
 A laser cutting machine is suggested to be used for producing the building parts.
+
+
 <img src="doc/img/laserCut.png" width="300">
 
 https://youtu.be/ouQx5Ufc19I
