@@ -1,4 +1,6 @@
 # aerodynamics
+<img src="doc/img/modelStructure.png" width="600">
+
 This is an experimental project to test a different lift distribution design method in:
 
 <img src="doc/1933Prandtl.jpg" width="600">
@@ -22,5 +24,6 @@ All CAD design files and matlab script used to synthesize the CAD file are avail
 
 A laser cutting machine is suggested to be used for producing the building parts.
 <img src="doc/img/laserCut.png" width="300">
+
 https://youtu.be/ouQx5Ufc19I
 
